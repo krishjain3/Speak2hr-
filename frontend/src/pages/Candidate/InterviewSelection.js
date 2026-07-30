@@ -49,6 +49,7 @@ function InterviewSelection() {
     experienceYears: user?.experienceYears || 0,
     jobDescription: '',
     targetRole: user?.targetRole || '',
+    interviewLevel: 'Technical Basic',
   });
 
   const handleInterviewTypeSelect = (type) => {
@@ -288,6 +289,24 @@ function InterviewSelection() {
               sx={{ mb: 2 }}
               placeholder="e.g., Senior Software Engineer"
             />
+
+            {/* Interview Level */}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="interview-level-label">Interview Level / Focus</InputLabel>
+              <Select
+                labelId="interview-level-label"
+                value={interviewConfig.interviewLevel}
+                label="Interview Level / Focus"
+                onChange={(e) => setInterviewConfig({ ...interviewConfig, interviewLevel: e.target.value })}
+              >
+                <MenuItem value="Technical Basic">Technical Basic</MenuItem>
+                <MenuItem value="Technical Advanced">Technical Advanced</MenuItem>
+                <MenuItem value="Tech Expert">Tech Expert</MenuItem>
+                <MenuItem value="HR Basic">HR Basic</MenuItem>
+                <MenuItem value="HR Intermediate">HR Intermediate</MenuItem>
+                <MenuItem value="Problem Solving">Problem Solving</MenuItem>
+              </Select>
+            </FormControl>
 
             {/* Job Description */}
             <TextField

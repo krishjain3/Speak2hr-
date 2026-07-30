@@ -1,3 +1,11 @@
+import os
+import warnings
+
+# Suppress TensorFlow logging, oneDNN warnings, and python warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+warnings.filterwarnings('ignore')
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -63,7 +71,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ==================== LOAD ENVIRONMENT ====================
-load_dotenv()
+load_dotenv(override=True)
 
 # Multiple API keys for parallel independent processing
 API_KEYS = {
@@ -82,9 +90,13 @@ genai_clients = {}
 for key_name, api_key in API_KEYS.items():
     if api_key:
         genai_clients[key_name] = genai.Client(api_key=api_key)
-        logger.info(f"Gemini client '{key_name}' configured successfully")
+        logger.info(f"Gemini client '{key_name}' configured")
     else:
         logger.warning(f"API key '{key_name}' not found!")
+
+# Assume all configured clients are active initially
+working_clients = {k: v for k, v in genai_clients.items()}
+
 
 # ==================== DIRECTORIES ====================
 TEMP_DIR = "temp_files"
@@ -103,17 +115,20 @@ DAILY_QUESTIONS_HISTORY = {}
 
 # ==================== QUESTION PROGRESSION ====================
 QUESTION_PROGRESSION = [
-    {"level": 1, "name": "HR Basic", "category": "hr", "difficulty": "easy", "weight": 0.8},
-    {"level": 2, "name": "HR Behavioral", "category": "hr", "difficulty": "medium", "weight": 0.9},
-    {"level": 3, "name": "Tech Simple", "category": "technical", "difficulty": "easy", "weight": 1.0},
-    {"level": 4, "name": "Tech Basic", "category": "technical", "difficulty": "easy", "weight": 1.1},
-    {"level": 5, "name": "Tech Intermediate", "category": "technical", "difficulty": "medium", "weight": 1.3},
-    {"level": 6, "name": "Tech Advanced", "category": "technical", "difficulty": "medium", "weight": 1.4},
-    {"level": 7, "name": "Tech Expert", "category": "technical", "difficulty": "hard", "weight": 1.6},
-    {"level": 8, "name": "Problem Solving", "category": "technical", "difficulty": "hard", "weight": 1.7},
+    {"level": 1, "name": "Introduction", "category": "behavioral", "difficulty": "easy", "weight": 0.8},
+    {"level": 2, "name": "Recent Project", "category": "technical", "difficulty": "medium", "weight": 1.0},
+    {"level": 3, "name": "Technical Concepts", "category": "technical", "difficulty": "medium", "weight": 1.1},
+    {"level": 4, "name": "Coding/Algorithms", "category": "technical", "difficulty": "hard", "weight": 1.3},
+    {"level": 5, "name": "System Design", "category": "technical", "difficulty": "hard", "weight": 1.4},
+    {"level": 6, "name": "Behavioral (STAR)", "category": "behavioral", "difficulty": "medium", "weight": 1.1},
+    {"level": 7, "name": "Scenario Analysis", "category": "technical", "difficulty": "hard", "weight": 1.5},
+    {"level": 8, "name": "Career Goals", "category": "behavioral", "difficulty": "easy", "weight": 0.8},
 ]
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = "gemini-2.0-flash"
+
+
+
 
 # ==================== LIFESPAN ====================
 @asynccontextmanager
@@ -227,12 +242,13 @@ class InterviewQuestionRequest(BaseModel):
     job_description: str
     role: str
     user_id: str
-    # CORRECTED: Pass structured resume data instead of raw summary
     candidate_name: Optional[str] = None
+    candidate_email: Optional[str] = None
     candidate_skills: List[str]  # Extracted skills from resume
     candidate_experience_years: int  # Years of experience
     candidate_work_history: Optional[List[Dict[str, str]]] = None  # [{"company": "X", "role": "Y", "duration": "Z"}]
     num_questions: Optional[int] = 8
+    interview_level: Optional[str] = "Technical Basic"
 
 class InterviewQuestion(BaseModel):
     question_id: str
@@ -303,9 +319,11 @@ class SessionSummary(BaseModel):
 class DailyAssessmentRequest(BaseModel):
     user_id: str
     role: str
-    difficulty: str
+    difficulty: Optional[str] = "medium"
+    experience_level: Optional[str] = "mid"
+    skills: Optional[List[str]] = None
     category: str
-    num_questions: Optional[int] = 5
+    num_questions: Optional[int] = 10
 
 class DailyQuestion(BaseModel):
     question_id: str
@@ -316,7 +334,9 @@ class DailyQuestion(BaseModel):
     question_type: str
     expected_keywords: List[str]
     time_limit_seconds: int
-    correct_answer: str
+    correct_answer: Any
+    model_answer: Optional[str] = None
+    explanation: Optional[str] = None
 
 class DailyAssessmentResponse(BaseModel):
     assessment_id: str
@@ -342,10 +362,10 @@ class AssessmentResult(BaseModel):
 
 class ReportRequest(BaseModel):
     session_id: str
-    user_id: str
-    user_name: str
-    user_email: str
-    role: str
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    role: Optional[str] = None
     send_email: Optional[bool] = True
 
 class SkillGapRequest(BaseModel):
@@ -393,13 +413,85 @@ class AuthResponse(BaseModel):
     user: dict
     token: str
 
-# ==================== HELPER FUNCTIONS ====================
+def make_json_serializable(data):
+    """Recursively convert numpy types to native Python types for JSON serialization"""
+    if isinstance(data, dict):
+        return {k: make_json_serializable(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [make_json_serializable(v) for v in data]
+    elif hasattr(data, "item"):  # Matches numpy types
+        return data.item()
+    return data
+
+def generate_content_with_retry(client_type: str, contents, config=None):
+    """Wrapper that makes a generate_content call and retries with other clients on 429 Resource Exhausted errors"""
+    tested_keys = set()
+    current_type = client_type
+    
+    while len(tested_keys) < len(working_clients):
+        try:
+            client = get_client(current_type)
+            # Find the actual key name
+            actual_key_name = None
+            for name, cl in working_clients.items():
+                if cl == client:
+                    actual_key_name = name
+                    break
+            
+            if actual_key_name:
+                tested_keys.add(actual_key_name)
+                
+            kwargs = {
+                "model": GEMINI_MODEL,
+                "contents": contents
+            }
+            if config:
+                kwargs["config"] = config
+                
+            response = client.models.generate_content(**kwargs)
+            return response
+            
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+                logger.warning(f"Gemini client '{current_type}' hit rate limit (429). Retrying with another client...")
+                remaining = [k for k in working_clients.keys() if k not in tested_keys]
+                if remaining:
+                    current_type = remaining[0]
+                    continue
+            raise e
+            
+    raise HTTPException(status_code=429, detail="All Gemini API keys hit rate limits. Please try again in a few seconds.")
 
 def get_client(client_type: str = "primary"):
-    """Get appropriate Gemini client based on use case"""
+    """Get appropriate Gemini client based on use case, with fallback to working clients"""
+    if client_type in working_clients:
+        return working_clients[client_type]
+    
+    # Fallback options in priority order
+    for fallback in ["primary", "tertiary", "assessment", "secondary", "emotion"]:
+        if fallback in working_clients:
+            logger.info(f"Falling back from Gemini client '{client_type}' to working client '{fallback}'")
+            return working_clients[fallback]
+            
+    # Absolute fallback to first available working client
+    if working_clients:
+        fallback = list(working_clients.keys())[0]
+        logger.info(f"Falling back from Gemini client '{client_type}' to working client '{fallback}'")
+        return working_clients[fallback]
+        
+    # If working_clients is completely empty, use raw genai_clients as last resort
     if client_type in genai_clients:
+        logger.warning(f"No verified clients available. Falling back to raw client '{client_type}'")
         return genai_clients[client_type]
-    return genai_clients.get("primary")
+        
+    if genai_clients:
+        first_key = list(genai_clients.keys())[0]
+        logger.warning(f"No verified clients available. Falling back to raw client '{first_key}'")
+        return genai_clients[first_key]
+        
+    raise HTTPException(status_code=500, detail="No working Gemini API keys configured.")
+
 
 def log_activity(user_id: str, action: str):
     conn = get_db_connection()
@@ -568,8 +660,8 @@ def analyze_resume(resume_text):
     Ensure strictly valid JSON format with no additional text.
     """
     
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
+    response = generate_content_with_retry(
+        client_type="primary",
         contents=prompt
     )
     
@@ -646,8 +738,8 @@ def analyze_skill_gap(resume_summary, job_description):
     Ensure the response is strictly valid JSON format with no additional text.
     """
     
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
+    response = generate_content_with_retry(
+        client_type="primary",
         contents=prompt
     )
     
@@ -682,29 +774,13 @@ async def generate_progressive_questions(
     candidate_experience_years: int,
     candidate_work_history: Optional[List[Dict[str, str]]] = None,
     candidate_name: Optional[str] = None,
-    num_questions: int = 8
+    num_questions: int = 8,
+    interview_level: str = "Technical Basic"
 ):
     """
     Generate personalized questions based on candidate skills, experience and JD
     All 8 levels generated in a single Gemini API call to reduce latency and hit-rate issues.
     """
-    # 1. Check in-memory cache
-    cache_key = f"{role}_{'_'.join(sorted(candidate_skills))}"
-    if cache_key in INTERVIEW_QUESTION_CACHE:
-        logger.info(f"Serving interview questions from cache for key: {cache_key}")
-        cached_questions = INTERVIEW_QUESTION_CACHE[cache_key]
-        
-        # Personalize candidate name dynamically
-        session_id = str(uuid.uuid4())
-        personalized_questions = []
-        for idx, q in enumerate(cached_questions):
-            q_copy = q.copy()
-            q_copy["question_id"] = f"{session_id}_{q_copy['level']}_0"
-            q_copy["order"] = idx + 1
-            if candidate_name:
-                q_copy["question"] = q_copy["question"].replace("Candidate", candidate_name)
-            personalized_questions.append(q_copy)
-        return personalized_questions, session_id
 
     # 2. Generate questions
     client = get_client("secondary")
@@ -719,93 +795,149 @@ async def generate_progressive_questions(
         
     seed = generate_unique_seed(user_id, datetime.now().isoformat(), "interview")
     
-    prompt = f"""
-    Generate 8 PERSONALIZED interview questions, one for each level in the progression below, based on the candidate's profile and job description.
-    
-    **CANDIDATE PROFILE:**
-    Name: Candidate
-    Role Applied: {role}
-    Skills: {', '.join(candidate_skills) if candidate_skills else 'Not specified'}
-    Experience: {candidate_experience_years} years
-    Recent Work: {work_history_text if work_history_text else 'Not specified'}
-    
-    **JOB REQUIREMENTS:**
-    {job_description[:800]}...
-    
-    **QUESTION LEVELS:**
-    1. HR Basic (HR, Easy, Weight: 0.8) - Ask about background, interest in the role, and career goals.
-    2. HR Behavioral (HR, Medium, Weight: 0.9) - Situations from work history/team collaboration using STAR method.
-    3. Tech Simple (Technical, Easy, Weight: 1.0) - Basic concepts of their skills/fundaments of JD.
-    4. Tech Basic (Technical, Easy, Weight: 1.1) - Implementation questions of their stack/simple tool usage.
-    5. Tech Intermediate (Technical, Medium, Weight: 1.3) - Practical problems/algorithm/JD scenarios.
-    6. Tech Advanced (Technical, Medium, Weight: 1.4) - Advanced concepts, system design, performance optimization.
-    7. Tech Expert (Technical, Hard, Weight: 1.6) - Complex system design, scalability trade-offs for {candidate_experience_years}+ year experience level.
-    8. Expert Problem Solving (Technical, Hard, Weight: 1.7) - Expert-level strategic scenarios, real-world JD problems.
-    
-    Uniqueness Seed: {seed}
-    
-    Return ONLY a valid JSON array of exactly 8 objects, in order:
-    [
-        {{
-            "level": 1,
-            "level_name": "HR Basic",
-            "category": "hr",
-            "difficulty": "easy",
-            "weight": 0.8,
-            "question": "Question text...",
-            "expected_keywords": ["keyword1", "keyword2"]
-        }},
-        ...
-    ]
-    Ensure strictly valid JSON format with no extra text.
-    """
-    
+    # Load candidate history to avoid asking the same questions
+    history_file = DAILY_QUESTIONS_DIR / f"{user_id}_history.json"
+    question_history = []
+    if history_file.exists():
+        try:
+            with open(history_file, 'r') as f:
+                question_history = json.load(f)
+        except Exception:
+            question_history = []
+            
+    # Set target level instructions
+    level_instruction = ""
+    if interview_level == "Technical Basic":
+        level_instruction = "All questions must be introductory, testing basic terminologies, fundamental concepts, core mechanics, and junior-level responsibilities."
+    elif interview_level == "Technical Advanced":
+        level_instruction = "All questions must be advanced, testing deep-dive implementations, framework mechanics, advanced design patterns, and senior developer topics."
+    elif interview_level == "Tech Expert":
+        level_instruction = "All questions must be expert-level, testing enterprise-scale system design, high scalability, extreme concurrency, performance optimization, and architectural trade-offs."
+    elif interview_level == "HR Basic":
+        level_instruction = "Focus primarily on soft skills, teamwork, basic work ethics, personal growth, and introductory communication scenarios. Keep technical questions simple."
+    elif interview_level == "HR Intermediate":
+        level_instruction = "Focus on leadership, situational conflict resolution, prioritization under tight deadlines, resource allocation, and project management scenarios."
+    elif interview_level == "Problem Solving":
+        level_instruction = "Focus heavily on logic, coding efficiency, algorithms, troubleshooting under pressure, analytical deduction, and complex system debugging."
+    else:
+        level_instruction = "Tailor questions dynamically to the candidate's experience level."
+        
     session_id = str(uuid.uuid4())
     all_questions = []
     
-    try:
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
-        )
-        response_text = response.text
-        json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
-        level_questions = json.loads(json_match.group(0)) if json_match else json.loads(response_text)
+    # Retry logic loop for generating unique questions
+    max_retries = 3
+    for attempt in range(max_retries):
+        current_seed = f"{seed}_{attempt}_{random.randint(1000, 9999)}"
         
-        cached_questions = []
-        for idx, q in enumerate(level_questions):
-            # Map correctly to question list
-            question_id = f"{session_id}_{q['level']}_0"
-            question_data = {
-                "question_id": question_id,
-                "question": q["question"],
-                "category": q["category"],
-                "difficulty": q["difficulty"],
-                "level": q["level"],
-                "level_name": q["level_name"],
-                "weight": q["weight"],
-                "expected_keywords": q.get("expected_keywords", []),
-                "order": idx + 1
-            }
-            all_questions.append(question_data)
-            cached_questions.append(question_data.copy())
+        prompt = f"""
+        Generate 8 PERSONALIZED interview questions, one for each level in the progression below, based on the candidate's profile and job description.
+        
+        **CANDIDATE PROFILE:**
+        Name: Candidate
+        Role Applied: {role}
+        Skills: {', '.join(candidate_skills) if candidate_skills else 'Not specified'}
+        Experience: {candidate_experience_years} years
+        Recent Work: {work_history_text if work_history_text else 'Not specified'}
+        
+        **JOB REQUIREMENTS:**
+        {job_description[:800]}...
+        
+        **INTERVIEW LEVEL:**
+        Selected Level: {interview_level}
+        Level Guidelines: {level_instruction}
+        
+        **CRITICAL ROLE RELEVANCE RULE:**
+        Every question generated MUST be directly relevant to the target role ({role}). Under no circumstances should you generate questions from unrelated domains or other roles (for example, if the role is Data Scientist, do not ask about frontend HTML/CSS or Java web frameworks. If the role is HR, keep technical concepts general and soft-skills focused). Keep all questions strictly focused on the core responsibilities, competencies, and domain of a {role}.
+
+        **QUESTION LEVELS:**
+        1. Introduction (Behavioral, Easy, Weight: 0.8) - Ask the candidate to introduce themselves, tell about their background, and what attracts them to this role.
+        2. Recent Project (Technical, Medium, Weight: 1.0) - Ask candidate to walk through a significant recent project they worked on, their technical role, and key outcomes.
+        3. Technical Concepts (Technical, Medium, Weight: 1.1) - Ask specific conceptual questions related to their core stack/skills.
+        4. Coding/Algorithms (Technical, Hard, Weight: 1.3) - Ask a coding, database query, or algorithm design problem scenario relevant to the job.
+        5. System Design (Technical, Hard, Weight: 1.4) - Ask how they would design a system, architecture, or workflow for a practical scenario relevant to the role.
+        6. Behavioral (STAR) (Behavioral, Medium, Weight: 1.1) - Ask a situational behavioral question about teamwork, dealing with failure, or tight deadlines.
+        7. Scenario Analysis (Technical, Hard, Weight: 1.5) - Present a complex technical issue (like performance bottleneck, data integrity, pipeline failure) and ask how they would debug and solve it.
+        8. Career Goals (Behavioral, Easy, Weight: 0.8) - Ask about their career roadmap, what they hope to achieve in 3-5 years, and how this role fits.
+        
+        Uniqueness Seed: {current_seed}
+        {"Avoid asking about these topics or questions as they were recently asked: " + ", ".join(question_history[-10:]) if question_history else ""}
+        
+        Return ONLY a valid JSON array of exactly 8 objects, in order:
+        [
+            {{
+                "level": 1,
+                "level_name": "Introduction",
+                "category": "behavioral",
+                "difficulty": "easy",
+                "weight": 0.8,
+                "question": "Question text...",
+                "expected_keywords": ["keyword1", "keyword2"]
+            }},
+            ...
+        ]
+        Ensure strictly valid JSON format with no extra text.
+        """
+        
+        try:
+            response = await asyncio.to_thread(
+                generate_content_with_retry,
+                client_type="secondary",
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.8)
+            )
+            response_text = response.text
+            json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
+            level_questions = json.loads(json_match.group(0)) if json_match else json.loads(response_text)
             
-        # Cache for future runs
-        INTERVIEW_QUESTION_CACHE[cache_key] = cached_questions
-        logger.info(f"Cached progressive interview questions for key: {cache_key}")
-        
-        # Personalize name for this response
-        if candidate_name:
-            for q in all_questions:
-                q["question"] = q["question"].replace("Candidate", candidate_name)
+            has_duplicate = False
+            history_set = {h.lower().strip() for h in question_history}
             
-        return all_questions, session_id
-        
-    except Exception as e:
-        logger.error(f"Error generating progressive questions: {str(e)}")
-        # Return fallback generic questions to prevent crashes
+            candidate_questions_this_batch = []
+            for idx, q in enumerate(level_questions):
+                q_text = q.get("question", "").lower().strip()
+                if q_text in history_set or any(q_text[:30] == h[:30] for h in history_set if len(h) > 10 and len(q_text) > 10):
+                    has_duplicate = True
+                    logger.warning(f"Duplicate question detected: '{q.get('question')}' matches history. Retrying generation...")
+                    break
+                
+                question_id = f"{session_id}_{q['level']}_0"
+                question_data = {
+                    "question_id": question_id,
+                    "question": q["question"],
+                    "category": q["category"],
+                    "difficulty": q["difficulty"],
+                    "level": q["level"],
+                    "level_name": q["level_name"],
+                    "weight": q["weight"],
+                    "expected_keywords": q.get("expected_keywords", []),
+                    "order": idx + 1
+                }
+                candidate_questions_this_batch.append(question_data)
+                
+            if has_duplicate:
+                continue
+                
+            # Save history
+            for q in candidate_questions_this_batch:
+                question_history.append(q["question"])
+            
+            try:
+                with open(history_file, 'w') as f:
+                    json.dump(question_history[-100:], f, indent=2)
+            except Exception as hist_err:
+                logger.error(f"Error saving candidate questions history: {str(hist_err)}")
+                
+            all_questions = candidate_questions_this_batch
+            break
+            
+        except Exception as e:
+            logger.error(f"Attempt {attempt} failed to generate progressive questions: {str(e)}")
+            if attempt == max_retries - 1:
+                logger.warning(f"All Gemini generation attempts failed: {str(e)}. Triggering progressive fallback questions.")
+                
+    if not all_questions:
+        logger.info(f"Populating generic fallback progressive questions for role: {role}")
         for idx, lvl in enumerate(QUESTION_PROGRESSION):
             all_questions.append({
                 "question_id": f"{session_id}_{lvl['level']}_0",
@@ -818,16 +950,22 @@ async def generate_progressive_questions(
                 "expected_keywords": [],
                 "order": idx + 1
             })
-        return all_questions, session_id
 
-def extract_frames_from_video(video_path: str, fps: int = 2):
+    # Personalize name for this response
+    if candidate_name:
+        for q in all_questions:
+            q["question"] = q["question"].replace("Candidate", candidate_name)
+        
+    return all_questions, session_id
+
+def extract_frames_from_video(video_path: str, fps: float = 2.0):
     """Extract frames from video for emotion analysis"""
     cap = cv2.VideoCapture(str(video_path))
     frames = []
     timestamps = []
     
-    frame_rate = int(cap.get(cv2.CAP_PROP_FPS))
-    frame_interval = max(1, frame_rate // fps)
+    frame_rate = cap.get(cv2.CAP_PROP_FPS) or 24.0
+    frame_interval = int(max(1, frame_rate // fps))
     
     frame_count = 0
     extracted_count = 0
@@ -852,7 +990,7 @@ def extract_frames_from_video(video_path: str, fps: int = 2):
 def analyze_emotions_in_video(video_path: str):
     """Analyze emotions using DeepFace"""
     try:
-        frames, timestamps = extract_frames_from_video(video_path, fps=2)
+        frames, timestamps = extract_frames_from_video(video_path, fps=0.5)
         
         if not frames:
             raise ValueError("No frames extracted from video")
@@ -1002,8 +1140,8 @@ async def evaluate_audio_response(question: str, transcription: str, difficulty:
     
     try:
         response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=GEMINI_MODEL,
+            generate_content_with_retry,
+            client_type="tertiary",
             contents=prompt,
             config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2)
         )
@@ -1059,141 +1197,294 @@ def map_emotion_to_score(emotion_analysis: dict) -> float:
 ASSESSMENT_CACHE = {}
 CACHE_EXPIRY_HOURS = 24
 
-async def generate_daily_questions(user_id: str, role: str, difficulty: str, category: str, num_questions: int = 5):
-    """Generate unique daily assessment questions with caching for speed optimization"""
-    # 1. Check cache first for this role/difficulty/category combo
-    cache_key = f"{role}_{difficulty}_{category}"
-    current_time = datetime.now()
+async def generate_daily_questions(
+    user_id: str,
+    role: str,
+    difficulty: str,
+    category: str,
+    num_questions: int = 10,
+    experience_level: str = "mid",
+    skills: List[str] = None
+):
+    """Generate unique daily assessment questions with automated difficulty progression and fallback database."""
+    assessment_id = str(uuid.uuid4())
     
-    if cache_key in ASSESSMENT_CACHE:
-        cache_entry = ASSESSMENT_CACHE[cache_key]
-        if (current_time - cache_entry['timestamp']).total_seconds() < (CACHE_EXPIRY_HOURS * 3600):
-            cached_questions = cache_entry['questions']
-            if len(cached_questions) >= num_questions:
-                # Randomly sample from cache to maintain uniqueness per user
-                selected_q = random.sample(cached_questions, num_questions)
-                assessment_id = str(uuid.uuid4())
-                
-                processed_questions = []
-                for idx, q in enumerate(selected_q):
-                    q_copy = q.copy()
-                    q_copy["question_id"] = f"{assessment_id}_{idx}"
-                    processed_questions.append(q_copy)
-                
-                logger.info(f"Loaded {num_questions} assessment questions from fast cache for {cache_key}")
-                return processed_questions, assessment_id
-
-    # 2. If not in cache or expired, generate via LLM (batch generating more to populate cache)
-    client = get_client("assessment")
-    
+    # Pre-load candidate history to ensure we avoid asking the same questions
     history_file = DAILY_QUESTIONS_DIR / f"{user_id}_history.json"
     question_history = []
-    
     if history_file.exists():
-        with open(history_file, 'r') as f:
-            question_history = json.load(f)
-    
-    today = datetime.now().strftime("%Y-%m-%d")
-    seed = generate_unique_seed(user_id, today, category, len(question_history))
-    
-    category_context = ""
-    if category == "hr":
-        category_context = "HR and behavioral questions about teamwork, communication, problem-solving"
-    elif category == "technical":
-        category_context = f"Technical questions related to {role} role, including programming, tools, concepts"
-    else:
-        category_context = f"Mix of HR behavioral and technical questions for {role} role"
-    
-    prompt = f"""
-    Generate 15 UNIQUE daily assessment questions for:
-    Role: {role}
-    Difficulty: {difficulty.upper()}
-    Category: {category_context}
-
-    Uniqueness Seed: {seed}
-    Date: {today}
-
-    IMPORTANT: These questions should be DIFFERENT from standard questions.
-    Avoid these previously asked topics: {', '.join(question_history[-20:]) if question_history else 'None'}
-
-    Generate questions in different formats:
-    - 40% Multiple Choice (4 options)
-    - 30% Short Answer (2-3 sentences expected)
-    - 30% Scenario-based (problem-solving)
-
-    Return ONLY valid JSON array:
-    [
-        {{
-            "question": "Question text",
-            "question_type": "mcq" or "short_answer" or "scenario",
-            "options": ["A", "B", "C", "D"] (only for mcq),
-            "correct_answer": "Correct option or key points",
-            "expected_keywords": ["keyword1", "keyword2"],
-            "time_limit_seconds": 60,
-            "category": "hr" or "technical"
-        }}
-    ]
-    """
-    
-    try:
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
-        )
-        
-        response_text = response.text
-        json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
-        
-        if json_match:
-            questions = json.loads(json_match.group(0))
+        try:
+            with open(history_file, 'r') as f:
+                question_history = json.load(f)
+        except Exception:
+            question_history = []
+            
+    # Try generating using Gemini API
+    client = get_client("assessment")
+    if client:
+        # Resolve category context description
+        category_context = ""
+        if category == "hr":
+            category_context = "HR and behavioral questions focusing on teamwork, leadership, communication, and situational handling."
+        elif category == "hr_basic":
+            category_context = f"Basic level HR and behavioral questions focusing on simple workplace scenarios, teamwork, and introductory communication skills for a {role}."
+        elif category == "hr_intermediate":
+            category_context = f"Intermediate level HR and behavioral questions focusing on situational conflict resolution, prioritization, and project coordination for a {role}."
+        elif category == "technical":
+            category_context = f"Technical questions covering programming, system design, databases, tooling, and concepts for a {role}."
+        elif category == "technical_basic":
+            category_context = f"Foundational technical questions covering syntax, basic terminology, syntax rules, and introductory concepts for a {role}."
+        elif category == "technical_advanced":
+            category_context = f"Advanced technical questions covering deep-dive programming, design patterns, profiling, security, and framework mechanics for a {role}."
+        elif category == "tech_expert":
+            category_context = f"Expert level technical questions covering high-level architecture, scalability, optimizations, concurrency, and complex trade-offs for a {role}."
+        elif category == "problem_solving":
+            category_context = f"Problem Solving focus testing logical deduction, algorithm complexity, code troubleshooting, and analytical debugging tasks for a {role}."
+        elif category == "general":
+            category_context = f"General and basic concepts for a {role}. The questions should test foundational, elementary, and introductory terminology, core principles, and basic knowledge of the role, keeping it at a very simple and basic level."
+        elif category == "coding":
+            category_context = f"Coding syntax, algorithmic concepts, standard data structures, and logical code completion tasks tailored for a {role}."
+        elif category == "design":
+            category_context = f"Advanced system design, microservices structure, scalability, performance optimizations, and API design for a {role}."
         else:
-            questions = json.loads(response_text)
-        
-        assessment_id = str(uuid.uuid4())
-        processed_questions = []
-        
-        for idx, q in enumerate(questions):
-            question_id = f"{assessment_id}_{idx}"
+            category_context = f"A balanced mix of technical questions for a {role} and behavioral/HR situations."
+
+        skills_str = ", ".join(skills) if skills else "standard role-related skills"
+        num_easy = max(1, int(num_questions * 0.3))
+        num_hard = max(1, int(num_questions * 0.3))
+        num_medium = max(1, num_questions - num_easy - num_hard)
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            today = datetime.now().strftime("%Y-%m-%d")
+            seed = f"{uuid.uuid4()}_{attempt}_{random.randint(1000, 9999)}"
             
-            processed_questions.append({
-                "question_id": question_id,
-                "question": q["question"],
-                "category": q.get("category", category),
-                "difficulty": difficulty,
-                "options": q.get("options"),
-                "question_type": q.get("question_type", "short_answer"),
-                "expected_keywords": q.get("expected_keywords", []),
-                "time_limit_seconds": q.get("time_limit_seconds", 60),
-                "correct_answer": q.get("correct_answer", "")
-            })
+            prompt = f"""
+            Generate an assessment consisting of exactly {num_questions} UNIQUE questions for:
+            Role: {role}
+            Experience Level: {experience_level}
+            Skills: {skills_str}
+            Assessment Category: {category_context}
             
+            Uniqueness Seed: {seed}
+            Date: {today}
+            
+            CRITICAL ROLE RELEVANCE RULE: Every single question in this assessment MUST be directly relevant to the selected role ({role}) and category focus. Under no circumstances should you generate questions from unrelated domains or other roles (for example, if the role is AI/ML Engineer, do not ask about React, HTML/CSS, Frontend development, or DevOps unless they directly tie into machine learning pipelines). Every question format, option, and scenario must test competencies specific to a {role}.
+
+            Avoid these previously asked topics: {', '.join(question_history[-20:]) if question_history else 'None'}
+
+            You must adjust the difficulty levels of the questions progressively throughout the assessment:
+            - The first {num_easy} questions (Questions 1 to {num_easy}) MUST be of 'easy' difficulty (relative to a candidate at the {experience_level} level).
+            - The next {num_medium} questions (Questions {num_easy + 1} to {num_easy + num_medium}) MUST be of 'medium' difficulty (relative to a candidate at the {experience_level} level).
+            - The remaining {num_hard} questions (Questions {num_easy + num_medium + 1} to {num_questions}) MUST be of 'hard' difficulty (challenging even for a candidate at the {experience_level} level).
+
+            The assessment must include a balanced distribution of the following question formats, all tailored specifically to a {role}:
+            - Multiple-Choice Questions (mcq): 4 options testing core concepts of a {role}. The 'correct_answer' must be the exact option string.
+            - Multiple-Select Questions (msq): 4 or 5 options testing complex systems/choices specific to a {role}. The 'correct_answer' MUST be a JSON array of the exact option strings that are correct, e.g., ["option1", "option2"].
+            - Short-Answer Questions (short_answer): 2-3 sentences expected on role-specific tasks. 'correct_answer' should be a concise summary of the ideal response.
+            - Scenario-Based Questions (scenario): workplace/technical scenarios requiring role-specific problem-solving. 'correct_answer' should be a structured ideal response.
+            - Logical Reasoning Questions (logical): logic patterns, algorithmic thinking, or puzzle questions relevant to a {role}'s domain. 'correct_answer' should be the correct logic statement or selected option if mcq.
+            - Role-Specific Technical Questions (technical): testing core code/concepts for a {role} with skills {skills_str}.
+
+            Each MCQ and MSQ must include:
+            - "options": list of 4-5 options.
+            - "explanation": a brief explanation of why the correct option(s) is correct (this will be shown to the candidate during review).
+            
+            Each descriptive question (short_answer, scenario, logical, technical) must include:
+            - "model_answer": A concise and direct professional model answer (maximum 3-4 sentences) showing how the question should be answered. Keep it brief and to the point.
+            
+            Return ONLY a valid JSON array of objects with the following schema:
+            [
+              {{
+                "question": "Question text...",
+                "question_type": "mcq" | "msq" | "short_answer" | "scenario" | "logical" | "technical",
+                "category": "technical" | "hr",
+                "difficulty": "easy" | "medium" | "hard",
+                "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"] (or null if not mcq/msq),
+                "correct_answer": "Exact correct option string (for mcq) OR JSON list of exact correct options (for msq) OR key points/ideal summary",
+                "expected_keywords": ["keyword1", "keyword2"],
+                "time_limit_seconds": 60 (for easy/mcq) | 120 (for medium/short) | 180 (for hard/scenario),
+                "model_answer": "Professional ideal response...",
+                "explanation": "Why correct options are correct..."
+              }}
+            ]
+            Do not add markdown formatting, return ONLY the raw JSON text.
+            """
+            
+            try:
+                response = await asyncio.to_thread(
+                    generate_content_with_retry,
+                    client_type="assessment",
+                    contents=prompt,
+                    config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
+                )
+                
+                response_text = response.text
+                json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
+                questions_data = json.loads(json_match.group(0)) if json_match else json.loads(response_text)
+                
+                has_duplicate = False
+                history_set = {h.lower().strip() for h in question_history}
+                
+                candidate_questions_this_batch = []
+                for idx, q in enumerate(questions_data):
+                    q_text = q.get("question", "").lower().strip()
+                    if q_text in history_set or any(q_text[:30] == h[:30] for h in history_set if len(h) > 10 and len(q_text) > 10):
+                        has_duplicate = True
+                        logger.warning(f"Duplicate daily question detected: '{q.get('question')}' matches history. Retrying generation...")
+                        break
+                        
+                    q_id = f"{assessment_id}_{idx}"
+                    candidate_questions_this_batch.append({
+                        "question_id": q_id,
+                        "question": q.get("question"),
+                        "category": q.get("category", category),
+                        "difficulty": q.get("difficulty", "medium"),
+                        "options": q.get("options"),
+                        "question_type": q.get("question_type", "short_answer"),
+                        "expected_keywords": q.get("expected_keywords", []),
+                        "time_limit_seconds": q.get("time_limit_seconds", 60),
+                        "correct_answer": q.get("correct_answer", ""),
+                        "model_answer": q.get("model_answer"),
+                        "explanation": q.get("explanation")
+                    })
+                    
+                if has_duplicate:
+                    continue
+                    
+                # Save history
+                for q in candidate_questions_this_batch:
+                    question_history.append(q["question"])
+                    
+                try:
+                    with open(history_file, 'w') as f:
+                        json.dump(question_history[-100:], f, indent=2)
+                except Exception as hist_err:
+                    logger.error(f"Error saving daily questions history: {str(hist_err)}")
+                    
+                logger.info(f"Successfully generated {len(candidate_questions_this_batch)} unique assessment questions via Gemini")
+                return candidate_questions_this_batch, assessment_id
+                
+            except Exception as api_err:
+                logger.warning(f"Attempt {attempt} failed to generate daily questions via Gemini: {str(api_err)}")
+                if attempt == max_retries - 1:
+                    logger.warning(f"Gemini API failed to generate questions, switching to fallback: {str(api_err)}")
+
+    # Fallback Mechanism: Load questions from local JSON bank
+    logger.info("Triggering offline/fallback question generation")
+    fallback_file = Path("assessments/fallback_questions.json")
+    if not fallback_file.exists():
+        fallback_file = Path("ML/assessments/fallback_questions.json")
         
-        # Save ALL processed questions to cache
-        ASSESSMENT_CACHE[cache_key] = {
-            'timestamp': datetime.now(),
-            'questions': processed_questions
-        }
-        logger.info(f"Populated cache for {cache_key} with {len(processed_questions)} questions")
+    if fallback_file.exists():
+        try:
+            with open(fallback_file, 'r') as f:
+                all_fallback = json.load(f)
+        except Exception as json_err:
+            logger.error(f"Failed to read fallback questions JSON: {json_err}")
+            all_fallback = []
+    else:
+        logger.error(f"Fallback questions file not found at {fallback_file}!")
+        all_fallback = []
+
+    # 1. Filter by category
+    if category == "mixed":
+        filtered = all_fallback
+    else:
+        filtered = [q for q in all_fallback if q.get("category") == category]
+        if not filtered:
+            filtered = all_fallback
+            
+    # 2. Filter by role
+    role_matching = []
+    role_lower = role.lower()
+    for q in filtered:
+        q_role = q.get("role", "general").lower()
+        if q_role in role_lower or role_lower in q_role:
+            role_matching.append(q)
+            
+    # If not enough questions for specific role, include general/software engineer questions
+    if len(role_matching) < num_questions:
+        for q in filtered:
+            q_role = q.get("role", "general").lower()
+            if q not in role_matching and q_role in ("general", "software engineer", "software_engineer"):
+                role_matching.append(q)
+                
+    # Fallback to all filtered questions if we are still short
+    if len(role_matching) < num_questions:
+        role_matching = filtered if filtered else all_fallback
+
+    # 3. Group by difficulty
+    easy_pool = [q for q in role_matching if q.get("difficulty") == "easy"]
+    medium_pool = [q for q in role_matching if q.get("difficulty") == "medium"]
+    hard_pool = [q for q in role_matching if q.get("difficulty") == "hard"]
+
+    # In case any pool is empty, populate from the main pool
+    if not easy_pool:
+        easy_pool = role_matching
+    if not medium_pool:
+        medium_pool = role_matching
+    if not hard_pool:
+        hard_pool = role_matching
+
+    # Determine slots
+    num_easy = max(1, int(num_questions * 0.3))
+    num_hard = max(1, int(num_questions * 0.3))
+    num_medium = max(1, num_questions - num_easy - num_hard)
+
+    selected_questions = []
+    chosen_questions = set()
+    
+    def pick_unique(pool, count):
+        available = [q for q in pool if q.get("question") not in chosen_questions]
+        sampled = random.sample(available, min(count, len(available)))
+        for q in sampled:
+            chosen_questions.add(q.get("question"))
+        return sampled
+
+    # Select easy
+    selected_questions.extend(pick_unique(easy_pool, num_easy))
+    
+    # Select medium
+    selected_questions.extend(pick_unique(medium_pool, num_medium))
+    
+    # Select hard
+    selected_questions.extend(pick_unique(hard_pool, num_hard))
+    
+    # If we are still short of num_questions, fill from the remaining role_matching questions
+    if len(selected_questions) < num_questions:
+        remaining = [q for q in role_matching if q.get("question") not in chosen_questions]
+        selected_questions.extend(pick_unique(remaining, num_questions - len(selected_questions)))
         
-        # Return only the requested number of questions
-        selected_q = random.sample(processed_questions, min(num_questions, len(processed_questions)))
-        final_questions = []
-        for idx, q in enumerate(selected_q):
-            q_copy = q.copy()
-            q_copy["question_id"] = f"{assessment_id}_{idx}"
-            final_questions.append(q_copy)
-            question_history.append(q_copy["question"][:50])
-        
-        with open(history_file, 'w') as f:
-            json.dump(question_history[-100:], f)
-        
-        return final_questions, assessment_id
-        
-    except Exception as e:
-        logger.error(f"Error generating daily questions: {str(e)}")
-        raise ValueError(f"Failed to generate questions: {str(e)}")
+    # If we are STILL short of num_questions, fill from the remaining filtered questions
+    if len(selected_questions) < num_questions:
+        remaining = [q for q in filtered if q.get("question") not in chosen_questions]
+        selected_questions.extend(pick_unique(remaining, num_questions - len(selected_questions)))
+
+    # If we are STILL short, only then allow random choice with duplicates
+    while len(selected_questions) < num_questions:
+        selected_questions.append(random.choice(all_fallback))
+
+    # Construct final questions
+    final_questions = []
+    for idx, q in enumerate(selected_questions):
+        q_id = f"{assessment_id}_{idx}"
+        final_questions.append({
+            "question_id": q_id,
+            "question": q.get("question"),
+            "category": q.get("category", category),
+            "difficulty": q.get("difficulty", "medium"),
+            "options": q.get("options"),
+            "question_type": q.get("question_type", "short_answer"),
+            "expected_keywords": q.get("expected_keywords", []),
+            "time_limit_seconds": q.get("time_limit_seconds", 60),
+            "correct_answer": q.get("correct_answer", ""),
+            "model_answer": q.get("model_answer"),
+            "explanation": q.get("explanation")
+        })
+
+    logger.info(f"Loaded {len(final_questions)} fallback questions for assessment")
+    return final_questions, assessment_id
 
 async def evaluate_daily_assessment(assessment_id: str, user_id: str, answers: Dict[str, str]):
     """Evaluate daily assessment submission"""
@@ -1210,45 +1501,114 @@ async def evaluate_daily_assessment(assessment_id: str, user_id: str, answers: D
     questions = assessment_data['questions']
     
     detailed_feedback = []
-    correct_count = 0
+    correct_count = 0.0
     category_scores = {}
     
-    # Separate MCQ and non-MCQ questions
-    mcq_questions = []
+    # Separate MCQ/MSQ and non-MCQ/MSQ questions
+    objective_questions = []
     non_mcq_questions = []
     
     for q in questions:
         q_id = q['question_id']
         user_answer = answers.get(q_id, "")
-        if q['question_type'] == 'mcq':
-            mcq_questions.append((q, user_answer))
+        if q.get('question_type') in ('mcq', 'msq'):
+            objective_questions.append((q, user_answer))
         else:
             non_mcq_questions.append((q, user_answer))
             
-    # 1. Evaluate MCQs locally (instant)
-    for q, user_answer in mcq_questions:
-        is_correct = user_answer.strip().lower() == q['correct_answer'].strip().lower()
-        score = 1.0 if is_correct else 0.0
-        feedback_text = "Correct!" if is_correct else f"Incorrect. Correct answer: {q['correct_answer']}"
+    # 1. Evaluate MCQ and MSQ locally (instant)
+    for q, user_answer in objective_questions:
+        q_type = q.get('question_type', 'mcq')
         
-        if is_correct:
-            correct_count += 1
+        if q_type == 'mcq':
+            is_correct = user_answer.strip().lower() == q['correct_answer'].strip().lower()
+            score = 1.0 if is_correct else 0.0
+            feedback_text = "Correct!" if is_correct else f"Incorrect. Correct answer: {q['correct_answer']}"
+            explanation = q.get('explanation') or f"The correct answer is: {q['correct_answer']}."
             
-        cat = q['category']
-        if cat not in category_scores:
-            category_scores[cat] = {'total': 0, 'score': 0, 'count': 0}
-        category_scores[cat]['total'] += 1
-        category_scores[cat]['score'] += score
-        category_scores[cat]['count'] += 1
-        
-        detailed_feedback.append({
-            'question': q['question'],
-            'your_answer': user_answer,
-            'score': score,
-            'feedback': feedback_text,
-            'category': q['category'],
-            'difficulty': q['difficulty']
-        })
+            if is_correct:
+                correct_count += 1.0
+                
+            cat = q['category']
+            if cat not in category_scores:
+                category_scores[cat] = {'total': 0, 'score': 0.0, 'count': 0}
+            category_scores[cat]['total'] += 1
+            category_scores[cat]['score'] += score
+            category_scores[cat]['count'] += 1
+            
+            detailed_feedback.append({
+                'question_id': q['question_id'],
+                'question': q['question'],
+                'question_type': 'mcq',
+                'options': q.get('options'),
+                'your_answer': user_answer,
+                'score': score,
+                'is_correct': is_correct,
+                'correct_answer': q['correct_answer'],
+                'explanation': explanation,
+                'feedback': feedback_text,
+                'category': q['category'],
+                'difficulty': q['difficulty']
+            })
+            
+        elif q_type == 'msq':
+            correct = q.get('correct_answer', '')
+            if isinstance(correct, str):
+                try:
+                    correct_list = json.loads(correct)
+                except Exception:
+                    correct_list = [c.strip() for c in correct.split(',') if c.strip()]
+            elif isinstance(correct, list):
+                correct_list = correct
+            else:
+                correct_list = []
+                
+            correct_set = {str(item).strip().lower() for item in correct_list}
+            
+            user_ans = user_answer
+            if isinstance(user_ans, str):
+                try:
+                    user_list = json.loads(user_ans)
+                except Exception:
+                    user_list = [u.strip() for u in user_ans.split(',') if u.strip()]
+            elif isinstance(user_ans, list):
+                user_list = user_ans
+            else:
+                user_list = []
+                
+            user_set = {str(item).strip().lower() for item in user_list}
+            
+            is_correct = (correct_set == user_set) and len(correct_set) > 0
+            score = 1.0 if is_correct else 0.0
+            
+            correct_display = ", ".join(correct_list)
+            feedback_text = "Correct!" if is_correct else f"Incorrect. Correct answers: {correct_display}"
+            explanation = q.get('explanation') or f"The correct answers are: {correct_display}."
+            
+            if is_correct:
+                correct_count += 1.0
+                
+            cat = q['category']
+            if cat not in category_scores:
+                category_scores[cat] = {'total': 0, 'score': 0.0, 'count': 0}
+            category_scores[cat]['total'] += 1
+            category_scores[cat]['score'] += score
+            category_scores[cat]['count'] += 1
+            
+            detailed_feedback.append({
+                'question_id': q['question_id'],
+                'question': q['question'],
+                'question_type': 'msq',
+                'options': q.get('options'),
+                'your_answer': user_answer,
+                'score': score,
+                'is_correct': is_correct,
+                'correct_answer': correct_list,
+                'explanation': explanation,
+                'feedback': feedback_text,
+                'category': q['category'],
+                'difficulty': q['difficulty']
+            })
         
     # 2. Evaluate non-MCQs in batch (1 Gemini API call instead of parallel/sequential calls)
     if non_mcq_questions:
@@ -1258,7 +1618,8 @@ async def evaluate_daily_assessment(assessment_id: str, user_id: str, answers: D
 
         batch_prompt = f"""
 Evaluate the following interview answers.
-For each answer, determine the score (from 0.0 to 1.0), whether it is correct (is_correct: true/false), and provide a brief, helpful feedback.
+For each answer, determine the score (from 0.0 to 1.0), whether it is correct (is_correct: true/false), and:
+1. Provide a brief explanation of why the candidate's answer received its score and a few suggestions for improvement.
 
 {eval_items_prompt}
 
@@ -1267,15 +1628,15 @@ Return ONLY a valid JSON object mapping each Question ID to its evaluation:
     "question_id_here": {{
         "score": 0.8,
         "is_correct": true,
-        "feedback": "..."
+        "explanation": "The candidate's answer scored 0.8 because..."
     }}
 }}
 Ensure the response is strictly valid JSON.
 """
         try:
             response = await asyncio.to_thread(
-                client.models.generate_content,
-                model=GEMINI_MODEL,
+                generate_content_with_retry,
+                client_type="assessment",
                 contents=batch_prompt,
                 config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2)
             )
@@ -1289,40 +1650,83 @@ Ensure the response is strictly valid JSON.
                 
                 score = q_eval.get('score', 0.5)
                 is_correct = q_eval.get('is_correct', False)
-                feedback_text = q_eval.get('feedback', 'Could not evaluate')
+                model_answer = q_eval.get('model_answer') or q.get('model_answer') or q.get('correct_answer', '')
+                explanation = q_eval.get('explanation') or q_eval.get('feedback', 'Could not evaluate')
                 
                 if is_correct:
-                    correct_count += 1
+                    correct_count += 1.0
                     
                 cat = q['category']
                 if cat not in category_scores:
-                    category_scores[cat] = {'total': 0, 'score': 0, 'count': 0}
+                    category_scores[cat] = {'total': 0, 'score': 0.0, 'count': 0}
                 category_scores[cat]['total'] += 1
                 category_scores[cat]['score'] += score
                 category_scores[cat]['count'] += 1
                 
                 detailed_feedback.append({
+                    'question_id': q['question_id'],
                     'question': q['question'],
+                    'question_type': q.get('question_type', 'short_answer'),
                     'your_answer': ans,
                     'score': score,
-                    'feedback': feedback_text,
+                    'is_correct': is_correct,
+                    'correct_answer': q.get('correct_answer', ''),
+                    'model_answer': model_answer,
+                    'explanation': explanation,
+                    'feedback': explanation,
                     'category': q['category'],
                     'difficulty': q['difficulty']
                 })
         except Exception as e:
-            logger.error(f"Error in batch evaluation: {e}")
+            logger.error(f"Error in batch evaluation: {e}, falling back to keyword evaluation")
             for q, ans in non_mcq_questions:
+                expected = q.get('expected_keywords', [])
+                matched = []
+                missing = []
+                ans_lower = ans.lower()
+                for kw in expected:
+                    if kw.lower() in ans_lower:
+                        matched.append(kw)
+                    else:
+                        missing.append(kw)
+                
+                if expected:
+                    score = len(matched) / len(expected)
+                else:
+                    score = 0.5
+                    
+                is_correct = score >= 0.6
+                if is_correct:
+                    correct_count += 1.0
+                    
+                model_answer = q.get('model_answer') or q.get('correct_answer', '')
+                if expected:
+                    matched_str = ", ".join(matched) if matched else "None"
+                    missing_str = ", ".join(missing) if missing else "None"
+                    explanation = f"Fallback keyword evaluation. Matched key concepts: {matched_str}. Missing concepts: {missing_str}."
+                    if missing:
+                        explanation += f" Suggestions: consider incorporating these terms to improve your response: {missing_str}."
+                else:
+                    explanation = "Fallback evaluation. Your answer has been saved and graded."
+                    
                 cat = q['category']
                 if cat not in category_scores:
-                    category_scores[cat] = {'total': 0, 'score': 0, 'count': 0}
+                    category_scores[cat] = {'total': 0, 'score': 0.0, 'count': 0}
                 category_scores[cat]['total'] += 1
-                category_scores[cat]['score'] += 0.5
+                category_scores[cat]['score'] += score
                 category_scores[cat]['count'] += 1
+                
                 detailed_feedback.append({
+                    'question_id': q['question_id'],
                     'question': q['question'],
+                    'question_type': q.get('question_type', 'short_answer'),
                     'your_answer': ans,
-                    'score': 0.5,
-                    'feedback': "Evaluation failed due to system error",
+                    'score': score,
+                    'is_correct': is_correct,
+                    'correct_answer': q.get('correct_answer', ''),
+                    'model_answer': model_answer,
+                    'explanation': explanation,
+                    'feedback': explanation,
                     'category': q['category'],
                     'difficulty': q['difficulty']
                 })
@@ -1397,7 +1801,7 @@ def generate_comprehensive_report(session_id: str, user_name: str, user_email: s
     if not evaluations:
         raise ValueError("No evaluations found for this session")
     
-    pdf_filename = f"interview_report_{session_id}_{int(time.time())}.pdf"
+    pdf_filename = f"report_{session_id}.pdf"
     pdf_path = REPORTS_DIR / pdf_filename
     
     doc = SimpleDocTemplate(str(pdf_path), pagesize=letter)
@@ -2084,22 +2488,41 @@ async def generate_interview_questions_endpoint(request: InterviewQuestionReques
     Frontend should send: skills array, experience years, work history
     NOT the entire resume summary text
     """
+    logger.info(f"[/api/interview/generate-questions] Generating questions for user_id={request.user_id}, candidate_name={request.candidate_name}, role={request.role}")
     try:
         questions, session_id = await generate_progressive_questions(
             job_description=request.job_description,
             role=request.role,
             user_id=request.user_id,
-            # CORRECTED: Pass structured data
             candidate_skills=request.candidate_skills,
             candidate_experience_years=request.candidate_experience_years,
             candidate_work_history=request.candidate_work_history,
             candidate_name=request.candidate_name,
-            num_questions=request.num_questions
+            num_questions=request.num_questions,
+            interview_level=request.interview_level
         )
         
+        # Save questions to file
         questions_file = RECORDINGS_DIR / f"{session_id}_questions.json"
         with open(questions_file, 'w') as f:
             json.dump(questions, f, indent=2)
+        logger.info(f"[/api/interview/generate-questions] Questions saved to {questions_file}")
+        
+        # Store metadata
+        metadata = {
+            "session_id": session_id,
+            "user_id": request.user_id,
+            "user_name": request.candidate_name or "Candidate",
+            "user_email": request.candidate_email or "",
+            "role": request.role,
+            "skills": request.candidate_skills,
+            "experience_years": request.candidate_experience_years,
+            "timestamp": datetime.now().isoformat()
+        }
+        metadata_file = RECORDINGS_DIR / f"{session_id}_metadata.json"
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        logger.info(f"[/api/interview/generate-questions] Metadata saved to {metadata_file}")
         
         return {
             "questions": questions,
@@ -2108,7 +2531,7 @@ async def generate_interview_questions_endpoint(request: InterviewQuestionReques
         }
     
     except Exception as e:
-        logger.error(f"Question generation error: {str(e)}")
+        logger.error(f"[/api/interview/generate-questions] Question generation error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/interview/evaluate-response", response_model=VideoInterviewEvaluationResult)
 async def evaluate_interview_response(
@@ -2125,9 +2548,20 @@ async def evaluate_interview_response(
     audio_file: UploadFile = File(...)
 ):
     """Evaluate video + audio interview response with DeepFace emotion analysis"""
+    logger.info(f"[/api/interview/evaluate-response] Starting evaluation for session_id={session_id}, question_id={question_id}")
     
+    # Save video as mp4
     video_path = VIDEOS_DIR / f"{session_id}_{question_id}_video.mp4"
-    audio_path = RECORDINGS_DIR / f"{session_id}_{question_id}_audio.wav"
+    
+    # Determine actual audio MIME type and extension
+    audio_mime = audio_file.content_type or "audio/webm"
+    audio_ext = "webm" if "webm" in audio_mime else "wav"
+    if "ogg" in audio_mime:
+        audio_ext = "ogg"
+        
+    audio_path = RECORDINGS_DIR / f"{session_id}_{question_id}_audio.{audio_ext}"
+    
+    logger.info(f"[/api/interview/evaluate-response] Audio file MIME: {audio_mime}, extension: .{audio_ext}")
     
     try:
         # Parse expected keywords
@@ -2137,11 +2571,13 @@ async def evaluate_interview_response(
         video_contents = await video_file.read()
         with open(video_path, "wb") as f:
             f.write(video_contents)
+        logger.info(f"[/api/interview/evaluate-response] Video saved successfully to {video_path}")
         
         # Save audio
         audio_contents = await audio_file.read()
         with open(audio_path, "wb") as f:
             f.write(audio_contents)
+        logger.info(f"[/api/interview/evaluate-response] Audio saved successfully to {audio_path}")
         
         # Get video duration
         cap = cv2.VideoCapture(str(video_path))
@@ -2149,28 +2585,33 @@ async def evaluate_interview_response(
         frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
         video_duration = frame_count / fps if fps > 0 else 0
         cap.release()
+        logger.info(f"[/api/interview/evaluate-response] Video duration calculated: {video_duration:.2f}s")
         
-        # Parallel processing
+        # Parallel processing of emotion analysis
+        logger.info(f"[/api/interview/evaluate-response] Spawning emotion analysis thread...")
         emotion_task = asyncio.create_task(asyncio.to_thread(analyze_emotions_in_video, str(video_path)))
         
         # Transcribe audio using Gemini
-        client = get_client("emotion")
+        logger.info(f"[/api/interview/evaluate-response] Transcribing audio with Gemini using mime_type={audio_mime}...")
         with open(audio_path, 'rb') as f:
             audio_data = base64.b64encode(f.read()).decode('utf-8')
         
-        transcription_response = client.models.generate_content(
-            model=GEMINI_MODEL,
+        transcription_response = generate_content_with_retry(
+            client_type="emotion",
             contents=[
-                {"text": "Transcribe this audio to text. Return ONLY the transcription, no additional text."},
-                {"inline_data": {"mime_type": "audio/wav", "data": audio_data}}
+                {"text": "Transcribe this audio to text. Return ONLY the transcription, no additional text. If the audio is silent or contains no speech, return an empty string."},
+                {"inline_data": {"mime_type": audio_mime, "data": audio_data}}
             ]
         )
-        transcription = transcription_response.text.strip()
+        transcription = transcription_response.text.strip() if transcription_response.text else ""
+        logger.info(f"[/api/interview/evaluate-response] Audio transcription complete. Length: {len(transcription)} chars.")
         
         # Wait for emotion analysis
         emotion_analysis = await emotion_task
+        logger.info(f"[/api/interview/evaluate-response] Emotion analysis complete. Dominant emotion: {emotion_analysis.get('dominant_emotion')}")
         
         # Evaluate audio response
+        logger.info(f"[/api/interview/evaluate-response] Requesting AI evaluation for answer...")
         audio_evaluation = await evaluate_audio_response(
             question, 
             transcription, 
@@ -2178,6 +2619,7 @@ async def evaluate_interview_response(
             category, 
             expected_keywords_list
         )
+        logger.info(f"[/api/interview/evaluate-response] AI evaluation complete: relevance={audio_evaluation.get('relevance')}, technical_accuracy={audio_evaluation.get('technical_accuracy')}")
         
         # Calculate scores
         relevance_score = audio_evaluation.get('relevance', 0.5)
@@ -2224,6 +2666,9 @@ async def evaluate_interview_response(
             'audio_duration': video_duration
         }
         
+        # Convert all numpy types to native Python types for JSON serialization
+        result = make_json_serializable(result)
+        
         # Store evaluation
         if session_id not in INTERVIEW_EVALUATIONS:
             INTERVIEW_EVALUATIONS[session_id] = []
@@ -2234,16 +2679,20 @@ async def evaluate_interview_response(
         eval_file = RECORDINGS_DIR / f"{session_id}_evaluations.json"
         with open(eval_file, 'w') as f:
             json.dump(INTERVIEW_EVALUATIONS[session_id], f, indent=2)
+        logger.info(f"[/api/interview/evaluate-response] Evaluation saved to {eval_file}")
         
         return VideoInterviewEvaluationResult(**result)
     
     except Exception as e:
-        logger.error(f"Evaluation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[/api/interview/evaluate-response] Evaluation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Backend evaluation failed: {str(e)}")
+
 
 @app.get("/api/interview/session/{session_id}")
 async def get_session_summary(session_id: str):
-    """Get session summary and statistics"""
+    """Get session summary and statistics, save to database, recalculate metrics, and pre-generate report"""
+    logger.info(f"[/api/interview/session/{session_id}] Fetching summary for session_id={session_id}")
+    
     evaluations = INTERVIEW_EVALUATIONS.get(session_id, [])
     
     if not evaluations:
@@ -2253,7 +2702,27 @@ async def get_session_summary(session_id: str):
                 evaluations = json.load(f)
                 INTERVIEW_EVALUATIONS[session_id] = evaluations
         else:
+            logger.error(f"[/api/interview/session/{session_id}] Session not found. No evaluations.")
             raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Load metadata
+    user_id = "unknown"
+    user_name = "Candidate"
+    user_email = ""
+    role = "Software Engineer"
+    
+    metadata_file = RECORDINGS_DIR / f"{session_id}_metadata.json"
+    if metadata_file.exists():
+        try:
+            with open(metadata_file, 'r') as f:
+                meta = json.load(f)
+                user_id = meta.get("user_id", "unknown")
+                user_name = meta.get("user_name", "Candidate")
+                user_email = meta.get("user_email", "")
+                role = meta.get("role", "Software Engineer")
+            logger.info(f"[/api/interview/session/{session_id}] Loaded metadata: user_id={user_id}, name={user_name}, role={role}")
+        except Exception as e:
+            logger.warning(f"[/api/interview/session/{session_id}] Failed to load metadata file: {str(e)}")
     
     # Calculate statistics
     total_questions = len(evaluations)
@@ -2313,10 +2782,63 @@ async def get_session_summary(session_id: str):
         recommendation = "Average performance. More practice needed in several areas."
     else:
         recommendation = "Needs significant improvement. Consider focused practice and coaching."
-    
+        
+    # Save overall evaluation/score to SQLite database
+    if user_id != "unknown":
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            eval_id = f"ai-eval-{session_id}"
+            
+            # Check if this evaluation already exists
+            cursor.execute("SELECT id FROM evaluations WHERE id = ?", (eval_id,))
+            exists = cursor.fetchone()
+            
+            feedback_payload = {
+                "overall_feedback": recommendation,
+                "overall_emotion": overall_emotion,
+                "stress_level": stress_level,
+                "weighted_average": weighted_avg,
+                "average_score": avg_score
+            }
+            
+            if not exists:
+                cursor.execute('''
+                    INSERT INTO evaluations (id, candidate_id, hr_id, score, feedback, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    eval_id,
+                    user_id,
+                    "ai-interviewer",
+                    weighted_avg,
+                    json.dumps(feedback_payload),
+                    "completed",
+                    datetime.now(timezone.utc).isoformat()
+                ))
+                conn.commit()
+                logger.info(f"[/api/interview/session/{session_id}] AI Interview evaluation {eval_id} saved to SQLite database.")
+            conn.close()
+            
+            # Recalculate metrics
+            recalculate_user_metrics(user_id)
+        except Exception as db_err:
+            logger.error(f"[/api/interview/session/{session_id}] Error storing evaluation in SQLite: {str(db_err)}")
+            
+    # Pre-generate comprehensive PDF report
+    try:
+        pdf_filename = generate_comprehensive_report(
+            session_id,
+            user_name,
+            user_email,
+            role
+        )
+        logger.info(f"[/api/interview/session/{session_id}] PDF report pre-generated successfully: {pdf_filename}")
+    except Exception as pdf_err:
+        logger.error(f"[/api/interview/session/{session_id}] Failed to pre-generate PDF report: {str(pdf_err)}")
+        
     return {
         "session_id": session_id,
-        "user_id": evaluations[0].get('session_id', 'unknown'),
+        "user_id": user_id,
         "total_questions": total_questions,
         "questions_answered": total_questions,
         "average_score": avg_score,
@@ -2332,24 +2854,50 @@ async def get_session_summary(session_id: str):
 @app.post("/api/interview/generate-report")
 async def generate_report_endpoint(request: ReportRequest):
     """Generate and optionally email comprehensive PDF report"""
+    logger.info(f"[/api/interview/generate-report] Generating report for session_id={request.session_id}")
     try:
+        # Load metadata if fields are missing
+        user_id = request.user_id
+        user_name = request.user_name
+        user_email = request.user_email
+        role = request.role
+        
+        metadata_file = RECORDINGS_DIR / f"{request.session_id}_metadata.json"
+        if metadata_file.exists() and (not user_id or not user_name or not user_email or not role):
+            try:
+                with open(metadata_file, 'r') as f:
+                    meta = json.load(f)
+                    if not user_id: user_id = meta.get("user_id")
+                    if not user_name: user_name = meta.get("user_name")
+                    if not user_email: user_email = meta.get("user_email")
+                    if not role: role = meta.get("role")
+                logger.info(f"[/api/interview/generate-report] Loaded details from metadata: user_name={user_name}, user_email={user_email}, role={role}")
+            except Exception as meta_err:
+                logger.warning(f"[/api/interview/generate-report] Failed to read metadata file: {str(meta_err)}")
+                
+        # Fill defaults
+        if not user_name: user_name = "Candidate"
+        if not user_email: user_email = ""
+        if not role: role = "Software Engineer"
+        
         pdf_filename = generate_comprehensive_report(
             request.session_id,
-            request.user_name,
-            request.user_email,
-            request.role
+            user_name,
+            user_email,
+            role
         )
         
         pdf_path = REPORTS_DIR / pdf_filename
         
-        # Send email if requested
+        # Send email if requested and email is provided
         email_sent = False
-        if request.send_email:
+        if request.send_email and user_email:
             email_sent = send_email_with_report(
-                request.user_email,
-                request.user_name,
+                user_email,
+                user_name,
                 pdf_path
             )
+            logger.info(f"[/api/interview/generate-report] Email sent to {user_email}: {email_sent}")
         
         return {
             "success": True,
@@ -2359,7 +2907,7 @@ async def generate_report_endpoint(request: ReportRequest):
         }
     
     except Exception as e:
-        logger.error(f"Report generation error: {str(e)}")
+        logger.error(f"[/api/interview/generate-report] Report generation error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/interview/download-report/{filename}")
@@ -2381,11 +2929,13 @@ async def generate_daily_assessment(request: DailyAssessmentRequest):
     """Generate daily assessment with unique questions"""
     try:
         questions, assessment_id = await generate_daily_questions(
-            request.user_id,
-            request.role,
-            request.difficulty,
-            request.category,
-            request.num_questions
+            user_id=request.user_id,
+            role=request.role,
+            difficulty=request.difficulty or "medium",
+            category=request.category,
+            num_questions=request.num_questions or 10,
+            experience_level=request.experience_level or "mid",
+            skills=request.skills
         )
         
         # Store assessment
@@ -2393,7 +2943,9 @@ async def generate_daily_assessment(request: DailyAssessmentRequest):
             'assessment_id': assessment_id,
             'user_id': request.user_id,
             'role': request.role,
-            'difficulty': request.difficulty,
+            'difficulty': request.difficulty or "medium",
+            'experience_level': request.experience_level or "mid",
+            'skills': request.skills,
             'category': request.category,
             'questions': questions,
             'date': datetime.now().isoformat()
@@ -2465,6 +3017,22 @@ async def get_assessment_history(user_id: str, limit: int = 10):
     
     except Exception as e:
         logger.error(f"History retrieval error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/assessment/result/{assessment_id}")
+async def get_assessment_result(assessment_id: str):
+    """Get detailed assessment result"""
+    try:
+        result_file = ASSESSMENTS_DIR / f"{assessment_id}_result.json"
+        if not result_file.exists():
+            raise HTTPException(status_code=404, detail="Assessment result not found")
+        
+        with open(result_file, 'r') as f:
+            result_data = json.load(f)
+            
+        return result_data
+    except Exception as e:
+        logger.error(f"Error retrieving assessment result: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/candidates/activities/{user_id}")
@@ -3203,6 +3771,78 @@ async def update_hr_profile(hr_id: str, request: dict):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/candidates/{candidate_id}/reports")
+async def get_candidate_reports(candidate_id: str):
+    """Fetch completed interview reports for a candidate from database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, score, feedback, created_at 
+            FROM evaluations 
+            WHERE candidate_id=? AND hr_id='ai-interviewer' AND status='completed'
+            ORDER BY created_at DESC
+        """, (candidate_id,))
+        rows = cursor.fetchall()
+        
+        reports = []
+        for r in rows:
+            eval_id = r["id"]
+            score_val = r["score"]
+            created_at = r["created_at"]
+            
+            feedback_raw = r["feedback"]
+            feedback_data = {}
+            if feedback_raw:
+                try:
+                    feedback_data = json.loads(feedback_raw)
+                except Exception:
+                    feedback_data = {}
+                    
+            # Load detailed evaluations file in recordings/ if available
+            eval_file = RECORDINGS_DIR / f"{eval_id}_evaluations.json"
+            detailed_evaluations = []
+            if eval_file.exists():
+                try:
+                    with open(eval_file, 'r') as f:
+                        detailed_evaluations = json.load(f)
+                except Exception:
+                    detailed_evaluations = []
+                    
+            # Calculate specific sub-scores from detailed evaluations
+            tech_scores = [float(e.get("technical_rating", 0.7)) for e in detailed_evaluations]
+            comm_scores = [float(e.get("clarity_rating", 0.7)) for e in detailed_evaluations]
+            behav_scores = [float(e.get("relevance_rating", 0.7)) for e in detailed_evaluations]
+            emo_scores = [float(e.get("confidence_rating", 0.7)) for e in detailed_evaluations]
+            
+            avg_tech = sum(tech_scores) / len(tech_scores) if tech_scores else score_val
+            avg_comm = sum(comm_scores) / len(comm_scores) if comm_scores else score_val
+            avg_behav = sum(behav_scores) / len(behav_scores) if behav_scores else score_val
+            avg_emo = sum(emo_scores) / len(emo_scores) if emo_scores else score_val
+            
+            reports.append({
+                "id": eval_id,
+                "sessionId": eval_id,
+                "date": created_at.split('T')[0] if created_at else datetime.now().strftime("%Y-%m-%d"),
+                "type": "AI Interview",
+                "overallScore": round(score_val * 100),
+                "technicalScore": round(avg_tech * 100),
+                "communicationScore": round(avg_comm * 100),
+                "behavioralScore": round(avg_behav * 100),
+                "emotionScore": round(avg_emo * 100),
+                "questionsAnswered": len(detailed_evaluations) if detailed_evaluations else 8,
+                "status": "completed",
+                "evaluations": detailed_evaluations,
+                "feedback": feedback_data.get("overall_feedback", "Successfully completed.")
+            })
+            
+        conn.close()
+        return reports
+    except Exception as e:
+        logger.error(f"Error fetching candidate reports: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/candidates/{candidate_id}")
 async def get_candidate_by_id(candidate_id: str):
     """Get specific candidate information for HR view"""
@@ -3247,6 +3887,39 @@ async def get_candidate_by_id(candidate_id: str):
         logger.error(f"Error fetching candidate details: {str(e)}")
         if isinstance(e, HTTPException):
             raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/candidates/{candidate_id}")
+async def update_candidate_profile(candidate_id: str, request: dict):
+    """Update candidate profile details in database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        name = request.get("name")
+        target_role = request.get("targetRole")
+        skills = request.get("skills", [])
+        experience_years = request.get("experienceYears", 0)
+        phone = request.get("phone", "")
+        location = request.get("location", "")
+        
+        # Serialize skills to JSON string
+        skills_str = json.dumps(skills) if isinstance(skills, list) else json.dumps([])
+        
+        cursor.execute("""
+            UPDATE users 
+            SET name=?, target_role=?, skills=?, experience_years=?, phone=?, location=?
+            WHERE id=? AND role='candidate'
+        """, (name, target_role, skills_str, experience_years, phone, location, candidate_id))
+        
+        conn.commit()
+        conn.close()
+        
+        log_activity(candidate_id, "Profile information updated.")
+        
+        return {"success": True, "message": "Profile updated successfully"}
+    except Exception as e:
+        logger.error(f"Error updating candidate profile: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/candidates/{candidate_id}/status")

@@ -43,9 +43,8 @@ import {
   VideoCameraFront,
   Room,
 } from '@mui/icons-material';
-import { slotAPI } from '../../services/api';
+import api, { slotAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import axios from 'axios';
 
 function SlotManagement() {
   const { user } = useAuthStore();
@@ -206,10 +205,10 @@ function SlotManagement() {
 
     try {
       if (editingSlot) {
-        await axios.put(`https://speak2hr-backend.onrender.com/api/slots/${editingSlot.id}`, payload);
+        await api.put(`/api/slots/${editingSlot.id}`, payload);
         setSuccess('Slot updated successfully');
       } else {
-        await axios.post('https://speak2hr-backend.onrender.com/api/slots', payload);
+        await api.post('/api/slots', payload);
         setSuccess('Slot created successfully');
       }
       setDialogOpen(false);
@@ -222,7 +221,7 @@ function SlotManagement() {
 
   const handleMarkCompleted = async (slotId) => {
     try {
-      await axios.put(`https://speak2hr-backend.onrender.com/api/slots/${slotId}`, { status: 'completed' });
+      await api.put(`/api/slots/${slotId}`, { status: 'completed' });
       setSuccess('Round marked as Completed.');
       fetchSlots();
     } catch (err) {
@@ -232,7 +231,7 @@ function SlotManagement() {
 
   const handleMarkMissed = async (slotId) => {
     try {
-      await axios.put(`https://speak2hr-backend.onrender.com/api/slots/${slotId}`, { status: 'missed' });
+      await api.put(`/api/slots/${slotId}`, { status: 'missed' });
       setSuccess('Round marked as Missed.');
       fetchSlots();
     } catch (err) {

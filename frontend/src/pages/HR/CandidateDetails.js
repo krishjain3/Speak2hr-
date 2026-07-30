@@ -33,8 +33,7 @@ import {
 } from '@mui/icons-material';
 import { Chart as ChartJS, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
-import { candidatesAPI } from '../../services/api';
-import axios from 'axios';
+import api, { candidatesAPI } from '../../services/api';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
@@ -82,7 +81,7 @@ function CandidateDetails() {
   const handleUpdateStatus = async (newStatus) => {
     try {
       setSaving(true);
-      await axios.put(`https://speak2hr-backend.onrender.com/api/candidates/${id}/status`, { status: newStatus });
+      await api.put(`/api/candidates/${id}/status`, { status: newStatus });
       setSuccess(`Candidate status updated to ${newStatus.toUpperCase()}`);
       fetchCandidate();
       setTimeout(() => setSuccess(''), 3000);

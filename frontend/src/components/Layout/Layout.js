@@ -38,8 +38,8 @@ import {
   Settings as SettingsIcon,
   Notifications,
 } from '@mui/icons-material';
+import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import axios from 'axios';
 
 const drawerWidth = 260;
 
@@ -85,7 +85,7 @@ function Layout({ userType }) {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get(`https://speak2hr-backend.onrender.com/api/notifications/${user.id}`);
+      const response = await api.get(`/api/notifications/${user.id}`);
       setNotifications(response.data || []);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
@@ -123,7 +123,7 @@ function Layout({ userType }) {
 
   const handleMarkAsRead = async (notiId) => {
     try {
-      await axios.post(`https://speak2hr-backend.onrender.com/api/notifications/read/${notiId}`);
+      await api.post(`/api/notifications/read/${notiId}`);
       fetchNotifications();
     } catch (err) {
       console.error('Failed to mark read:', err);

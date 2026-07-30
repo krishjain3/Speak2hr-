@@ -26,7 +26,7 @@ import {
   Check,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
-import { resumeAPI } from '../../services/api';
+import { resumeAPI, candidatesAPI } from '../../services/api';
 
 const SKILLS_OPTIONS = [
   'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'AWS',
@@ -72,8 +72,7 @@ function Profile() {
     setSuccess('');
 
     try {
-      // Simulated save - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await candidatesAPI.update(user.id, formData);
       updateUser(formData);
       setEditing(false);
       setSuccess('Profile updated successfully!');

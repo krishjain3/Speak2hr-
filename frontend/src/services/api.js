@@ -90,6 +90,7 @@ export const interviewAPI = {
       role: data.targetRole || data.jobDescription,
       user_id: data.userId || `user_${Date.now()}`,
       num_questions: 8,
+      interview_level: data.interviewLevel || 'Technical Basic',
     });
   },
 
@@ -135,13 +136,15 @@ export const interviewAPI = {
 
 // Assessment APIs
 export const assessmentAPI = {
-  generate: async (userId, role, difficulty = 'medium', category = 'technical') => {
+  generate: async (userId, role, difficulty = 'medium', category = 'technical', experienceLevel = 'mid', skills = []) => {
     return api.post('/api/assessment/generate', {
       user_id: userId,
       role: role,
       difficulty: difficulty,
       category: category,
       num_questions: 10,
+      experience_level: experienceLevel,
+      skills: skills,
     });
   },
 
@@ -155,6 +158,10 @@ export const assessmentAPI = {
 
   getHistory: async (userId) => {
     return api.get(`/api/assessment/history/${userId}`);
+  },
+
+  getResult: async (assessmentId) => {
+    return api.get(`/api/assessment/result/${assessmentId}`);
   },
 };
 
@@ -229,6 +236,16 @@ export const candidatesAPI = {
       return { data: response.data };
     } catch (error) {
       console.error("Failed to fetch candidate dashboard data:", error);
+      throw error;
+    }
+  },
+
+  getReports: async (userId) => {
+    try {
+      const response = await api.get(`/api/candidates/${userId}/reports`);
+      return { data: response.data };
+    } catch (error) {
+      console.error("Failed to fetch candidate reports:", error);
       throw error;
     }
   },

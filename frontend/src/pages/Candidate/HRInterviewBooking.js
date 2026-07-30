@@ -36,9 +36,8 @@ import {
   Room,
   Language,
 } from '@mui/icons-material';
-import { slotAPI } from '../../services/api';
+import api, { slotAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import axios from 'axios';
 
 function HRInterviewBooking() {
   const navigate = useNavigate();
@@ -76,7 +75,7 @@ function HRInterviewBooking() {
       setSlots(response.data);
 
       // Load HR Recruiters
-      const hrResponse = await axios.get('https://speak2hr-backend.onrender.com/api/hrs');
+      const hrResponse = await api.get('/api/hrs');
       setHrs(hrResponse.data || []);
 
       // Get user's bookings

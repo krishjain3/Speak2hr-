@@ -44,8 +44,7 @@ import {
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { useAuthStore } from '../../store/authStore';
-import { candidatesAPI, slotAPI } from '../../services/api';
-import axios from 'axios';
+import api, { candidatesAPI, slotAPI } from '../../services/api';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -130,7 +129,7 @@ function HRDashboard() {
       setUpcomingInterviews(bookedSlots);
 
       // Load HR profile details from database
-      const hrListResponse = await axios.get('https://speak2hr-backend.onrender.com/api/hrs');
+      const hrListResponse = await api.get('/api/hrs');
       const matchedHr = hrListResponse.data.find(h => h.email === user?.email || h.id === user?.id);
       
       if (matchedHr) {
@@ -203,7 +202,7 @@ function HRDashboard() {
         avatar: profileForm.avatar,
       };
 
-     await axios.put(`https://speak2hr-backend.onrender.com/api/hr/profile/${profileForm.id || user?.id}`, payload);
+      await api.put(`/api/hr/profile/${profileForm.id || user?.id}`, payload);
       setSuccessMsg('Profile updated successfully!');
       fetchDashboardData();
     } catch (err) {
@@ -213,7 +212,7 @@ function HRDashboard() {
 
   const handleSlotStatusUpdate = async (slotId, newStatus) => {
     try {
-      await axios.put(`https://speak2hr-backend.onrender.com/api/slots/${slotId}`, { status: newStatus });
+      await api.put(`/api/slots/${slotId}`, { status: newStatus });
       setSuccessMsg(`Slot marked as ${newStatus}`);
       fetchDashboardData();
     } catch (err) {

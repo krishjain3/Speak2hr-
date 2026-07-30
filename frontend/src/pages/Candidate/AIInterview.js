@@ -36,14 +36,14 @@ import { useAuthStore } from '../../store/authStore';
 import { useInterviewStore } from '../../store/authStore';
 
 const QUESTION_LEVELS = [
-  'HR Basic',
-  'HR Behavioral',
-  'Tech Simple',
-  'Tech Basic',
-  'Tech Intermediate',
-  'Tech Advanced',
-  'Tech Expert',
-  'Problem Solving',
+  'Introduction',
+  'Recent Project',
+  'Technical Concepts',
+  'Coding/Algorithms',
+  'System Design',
+  'Behavioral (STAR)',
+  'Scenario Analysis',
+  'Career Goals',
 ];
 
 function AIInterview() {
@@ -79,6 +79,22 @@ function AIInterview() {
   const [interviewComplete, setInterviewComplete] = useState(false);
   const [error, setError] = useState('');
   const [recordingTime, setRecordingTime] = useState(0);
+  const [countdown, setCountdown] = useState(15);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
+
+  // Automatic countdown transition
+  useEffect(() => {
+    let timer;
+    if (showEvaluation && !isTimerPaused && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (showEvaluation && countdown === 0) {
+      // Countdown reached 0: proceed
+      handleNextQuestion();
+    }
+    return () => clearInterval(timer);
+  }, [showEvaluation, isTimerPaused, countdown]);
 
   const config = location.state?.config;
 
@@ -93,12 +109,14 @@ function AIInterview() {
       try {
         const response = await interviewAPI.generateQuestions({
           candidateName: user?.name || 'Candidate',
+          candidateEmail: user?.email || '',
           skills: config.skills,
           experienceYears: config.experienceYears,
           jobDescription: config.jobDescription || config.targetRole,
           targetRole: config.targetRole || 'Software Engineer',
           workHistory: [],
           userId: user?.id,
+          interviewLevel: config.interviewLevel || 'Technical Basic',
         });
         setQuestions(response.data.questions);
       } catch (err) {
@@ -196,6 +214,7 @@ function AIInterview() {
       return;
     }
 
+    console.log('[AIInterview] Submitting response for evaluation...');
     setEvaluating(true);
     setError('');
 
@@ -205,19 +224,24 @@ function AIInterview() {
       const videoFile = new File([recordedBlob], 'response.webm', { type: 'video/webm' });
       const audioFile = new File([audioBlob], 'response.webm', { type: 'audio/webm' });
 
+      console.log('[AIInterview] Files packaged. Sending to backend...');
       const response = await interviewAPI.evaluateResponse(
         sessionId,
         currentQuestion,
         videoFile,
         audioFile
       );
-
+      
+      console.log('[AIInterview] Received evaluation response:', response.data);
       setCurrentEvaluation(response.data);
       addResponse(response.data);
+      setCountdown(15);
+      setIsTimerPaused(false);
       setShowEvaluation(true);
     } catch (err) {
-      setError('Failed to evaluate response. Please try again.');
-      console.error(err);
+      console.error('[AIInterview] Evaluation failed:', err);
+      const errMsg = err.response?.data?.detail || err.message || 'Failed to evaluate response. Please try again.';
+      setError(`Failed to evaluate response: ${errMsg}`);
     } finally {
       setEvaluating(false);
     }
@@ -233,16 +257,24 @@ function AIInterview() {
       nextQuestion();
     } else {
       setInterviewComplete(true);
+      handleFinishInterview();
     }
   };
 
   const handleFinishInterview = async () => {
+    console.log('[AIInterview] Finalizing interview and generating report...');
+    setEvaluating(true);
+    setError('Generating final interview report. Please wait...');
     try {
       const summary = await interviewAPI.getSessionSummary(sessionId);
+      console.log('[AIInterview] Report summary generated:', summary.data);
       setSessionResults(summary.data);
       navigate('/candidate/reports', { state: { sessionId, summary: summary.data } });
     } catch (err) {
+      console.error('[AIInterview] Failed to load session summary:', err);
       navigate('/candidate/reports');
+    } finally {
+      setEvaluating(false);
     }
   };
 
@@ -363,9 +395,21 @@ function AIInterview() {
               </Typography>
 
               {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {error}
-                </Alert>
+                <Box sx={{ mb: 2 }}>
+                  <Alert severity="error" sx={{ mb: 1 }}>
+                    {error}
+                  </Alert>
+                  {!evaluating && (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      onClick={handleNextQuestion}
+                      fullWidth
+                    >
+                      Skip & Move to Next Question
+                    </Button>
+                  )}
+                </Box>
               )}
 
               {/* Recording Controls */}
@@ -420,12 +464,11 @@ function AIInterview() {
                     </Button>
                   </>
                 )}
-
                 {evaluating && (
                   <Box sx={{ textAlign: 'center', py: 2 }}>
                     <CircularProgress />
                     <Typography variant="body2" sx={{ mt: 1 }}>
-                      Analyzing your response...
+                      {error && error.includes('wait') ? error : "Analyzing your response..."}
                     </Typography>
                   </Box>
                 )}
@@ -438,9 +481,17 @@ function AIInterview() {
       {/* Evaluation Dialog */}
       <Dialog open={showEvaluation} maxWidth="sm" fullWidth>
         <DialogTitle>
-          <Typography variant="h6" fontWeight={600}>
-            Response Evaluation
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" fontWeight={600}>
+              Response Evaluation
+            </Typography>
+            <Chip
+              label={isTimerPaused ? "Autoplay Paused" : `Next in ${countdown}s`}
+              color={isTimerPaused ? "default" : "primary"}
+              variant="outlined"
+              size="small"
+            />
+          </Box>
         </DialogTitle>
         <DialogContent>
           {currentEvaluation && (
@@ -488,13 +539,19 @@ function AIInterview() {
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setIsTimerPaused(!isTimerPaused)}
+          >
+            {isTimerPaused ? 'Resume Autoplay' : 'Pause'}
+          </Button>
           <Button
             variant="contained"
             onClick={handleNextQuestion}
             endIcon={currentQuestionIndex < questions.length - 1 ? <NavigateNext /> : <Check />}
           >
-            {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Interview'}
+            {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Generating Report...'}
           </Button>
         </DialogActions>
       </Dialog>

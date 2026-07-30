@@ -32,7 +32,7 @@ import {
   EmojiEvents,
   Visibility,
 } from '@mui/icons-material';
-import { interviewAPI } from '../../services/api';
+import { interviewAPI, candidatesAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 // Helper functions for localStorage
@@ -84,39 +84,79 @@ function MyReports() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reports, setReports] = useState([]);
   const [weeklyReports, setWeeklyReports] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchReports = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const response = await candidatesAPI.getReports(user.id);
+      const fetchedReports = response.data || [];
+      
+      let finalReports = [...fetchedReports];
+      if (location.state?.summary && location.state?.sessionId) {
+        const summary = location.state.summary;
+        const exists = fetchedReports.find(r => r.sessionId === location.state.sessionId);
+        if (!exists) {
+          const newReport = {
+            id: location.state.sessionId,
+            sessionId: location.state.sessionId,
+            date: new Date().toISOString().split('T')[0],
+            type: 'AI Interview',
+            overallScore: Math.round((summary.overall_score || summary.average_score || 0) * 100),
+            technicalScore: Math.round((summary.technical_score || summary.average_technical || 0) * 100),
+            communicationScore: Math.round((summary.communication_score || summary.average_clarity || 0) * 100),
+            behavioralScore: Math.round((summary.behavioral_score || summary.average_relevance || 0) * 100),
+            emotionScore: Math.round((summary.emotion_score || summary.average_confidence || 0) * 100),
+            rating: getRating(summary.overall_score || summary.average_score || 0),
+            questionsAnswered: summary.total_questions || 8,
+            status: 'completed',
+            evaluations: summary.evaluations || [],
+            feedback: summary.feedback || '',
+          };
+          finalReports = [newReport, ...fetchedReports];
+          setSelectedReport(newReport);
+          setDetailsOpen(true);
+        }
+      }
+      
+      setReports(finalReports);
+      setWeeklyReports(calculateWeeklySummary(finalReports));
+    } catch (err) {
+      console.error('Failed to load reports from backend:', err);
+      let storedReports = getStoredReports();
+      if (location.state?.summary && location.state?.sessionId) {
+        const summary = location.state.summary;
+        const newReport = {
+          id: Date.now(),
+          sessionId: location.state.sessionId,
+          date: new Date().toISOString().split('T')[0],
+          type: 'AI Interview',
+          overallScore: Math.round((summary.overall_score || summary.average_score || 0) * 100),
+          technicalScore: Math.round((summary.technical_score || summary.average_technical || 0) * 100),
+          communicationScore: Math.round((summary.communication_score || summary.average_clarity || 0) * 100),
+          behavioralScore: Math.round((summary.behavioral_score || summary.average_relevance || 0) * 100),
+          emotionScore: Math.round((summary.emotion_score || summary.average_confidence || 0) * 100),
+          rating: getRating(summary.overall_score || summary.average_score || 0),
+          questionsAnswered: summary.total_questions || 8,
+          status: 'completed',
+          evaluations: summary.evaluations || [],
+          feedback: summary.feedback || '',
+        };
+        storedReports = saveReport(newReport);
+        setSelectedReport(newReport);
+        setDetailsOpen(true);
+      }
+      setReports(storedReports);
+      setWeeklyReports(calculateWeeklySummary(storedReports));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load existing reports
-    let storedReports = getStoredReports();
-
-    // Check if we have new session data from navigation
-    if (location.state?.summary && location.state?.sessionId) {
-      const summary = location.state.summary;
-      const newReport = {
-        id: Date.now(),
-        sessionId: location.state.sessionId,
-        date: new Date().toISOString().split('T')[0],
-        type: 'AI Interview',
-        overallScore: Math.round((summary.overall_score || summary.average_score || 0) * 100),
-        technicalScore: Math.round((summary.technical_score || summary.average_technical || 0) * 100),
-        communicationScore: Math.round((summary.communication_score || summary.average_clarity || 0) * 100),
-        behavioralScore: Math.round((summary.behavioral_score || summary.average_relevance || 0) * 100),
-        emotionScore: Math.round((summary.emotion_score || summary.average_confidence || 0) * 100),
-        rating: getRating(summary.overall_score || summary.average_score || 0),
-        questionsAnswered: summary.total_questions || 8,
-        status: 'completed',
-        evaluations: summary.evaluations || [],
-        feedback: summary.feedback || '',
-      };
-      storedReports = saveReport(newReport);
-    }
-
-    setReports(storedReports);
-
-    // Calculate weekly summaries from actual data
-    const weeklySummary = calculateWeeklySummary(storedReports);
-    setWeeklyReports(weeklySummary);
-  }, [location.state]);
+    fetchReports();
+  }, [user?.id, location.state]);
 
   const getRating = (score) => {
     if (score >= 0.85) return 'Excellent';
@@ -256,7 +296,11 @@ function MyReports() {
       {/* Interview Reports Tab */}
       {tabValue === 0 && (
         <Box>
-          {reports.length === 0 ? (
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : reports.length === 0 ? (
             <Alert severity="info">
               No interview reports yet. Complete an interview to see your reports here.
             </Alert>

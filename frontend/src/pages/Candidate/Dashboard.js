@@ -39,8 +39,7 @@ import {
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { useAuthStore } from '../../store/authStore';
-import { slotAPI, candidatesAPI } from '../../services/api';
-import axios from 'axios';
+import api, { slotAPI, candidatesAPI } from '../../services/api';
 import CircularProgress from '@mui/material/CircularProgress';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
@@ -128,7 +127,7 @@ function CandidateDashboard() {
 
   const fetchHrs = async () => {
     try {
-     const response = await axios.get('https://speak2hr-backend.onrender.com/api/hrs');
+      const response = await api.get('/api/hrs');
       setHrs(response.data.slice(0, 3) || []); // Limit to 3 for quick dashboard listing
     } catch (err) {
       console.error('Failed to load HRs:', err);
