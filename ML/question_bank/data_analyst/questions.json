@@ -1,0 +1,18 @@
+{
+  "role": "data_analyst",
+  "easy": {
+    "Excel": [],
+    "Data Visualization Basics": [],
+    "Basic SQL": []
+  },
+  "medium": {
+    "Python (Pandas)": [],
+    "Tableau/PowerBI": [],
+    "Advanced SQL": []
+  },
+  "hard": {
+    "A/B Testing": [],
+    "Predictive Analytics": [],
+    "ETL Pipelines": []
+  }
+}

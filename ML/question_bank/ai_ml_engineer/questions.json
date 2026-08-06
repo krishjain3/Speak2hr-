@@ -1,0 +1,18 @@
+{
+  "role": "ai_ml_engineer",
+  "easy": {
+    "Python Programming": [],
+    "Linear Algebra": [],
+    "Basic Datasets": []
+  },
+  "medium": {
+    "Scikit-Learn": [],
+    "Deep Learning Frameworks (PyTorch/TensorFlow)": [],
+    "Computer Vision": []
+  },
+  "hard": {
+    "Fine-Tuning LLMs": [],
+    "Reinforcement Learning": [],
+    "Custom Optimizations": []
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "role": "cybersecurity_analyst",
+  "easy": {
+    "Networking Protocols": [],
+    "OS Security": [],
+    "Common Threats": []
+  },
+  "medium": {
+    "Firewalls": [],
+    "Penetration Testing": [],
+    "Incident Response": []
+  },
+  "hard": {
+    "Threat Hunting": [],
+    "Reverse Engineering": [],
+    "Zero Trust": []
+  }
+}

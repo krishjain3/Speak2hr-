@@ -1,0 +1,21 @@
+{
+  "role": "full_stack_developer",
+  "easy": {
+    "Frontend Basics": [],
+    "Web Protocols": [],
+    "Basic Database CRUD": [],
+    "Version Control": []
+  },
+  "medium": {
+    "Frontend Framework Integration": [],
+    "API Integration": [],
+    "Middleware": [],
+    "User Authorization": []
+  },
+  "hard": {
+    "End-to-End Architecture": [],
+    "CI/CD": [],
+    "Serverless": [],
+    "Complex Databases": []
+  }
+}

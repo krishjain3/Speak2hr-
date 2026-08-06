@@ -1,0 +1,70 @@
+{
+  "role": "software_engineer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:18:23.928703+00:00",
+  "last_updated": "2026-07-30T14:18:23.928703+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Algorithms": 0,
+    "Basic Data Structures": 0,
+    "OOP": 0,
+    "Database Management": 0,
+    "Testing": 0,
+    "API Design": 0,
+    "Distributed Consensus": 0,
+    "Performance Profiling": 0,
+    "High-Availability": 0
+  },
+  "topics_completion": {
+    "Algorithms": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Basic Data Structures": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "OOP": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Database Management": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Testing": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "API Design": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Distributed Consensus": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Performance Profiling": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "High-Availability": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

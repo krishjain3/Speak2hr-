@@ -1,0 +1,18 @@
+{
+  "role": "hr_specialist",
+  "easy": {
+    "Communication": [],
+    "Recruitment Cycle": [],
+    "Policy Basics": []
+  },
+  "medium": {
+    "Conflict Resolution": [],
+    "Candidate Sourcing": [],
+    "Interviewing Techniques": []
+  },
+  "hard": {
+    "HR Analytics": [],
+    "Labor Law Compliance": [],
+    "Organizational Design": []
+  }
+}

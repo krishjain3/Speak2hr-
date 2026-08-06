@@ -1,0 +1,70 @@
+{
+  "role": "uiux_designer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:15:43.035940+00:00",
+  "last_updated": "2026-07-30T14:15:43.035940+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Design Principles": 0,
+    "Typography": 0,
+    "Color Theory": 0,
+    "Figma/Sketch": 0,
+    "User Research": 0,
+    "Usability Testing": 0,
+    "Design Systems": 0,
+    "User Journey Mapping": 0,
+    "Accessibility Standards": 0
+  },
+  "topics_completion": {
+    "Design Principles": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Typography": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Color Theory": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Figma/Sketch": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "User Research": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Usability Testing": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Design Systems": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "User Journey Mapping": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Accessibility Standards": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

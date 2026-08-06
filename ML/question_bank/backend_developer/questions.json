@@ -1,0 +1,21 @@
+{
+  "role": "backend_developer",
+  "easy": {
+    "Databases": [],
+    "REST APIs": [],
+    "Git": [],
+    "Linux Basics": []
+  },
+  "medium": {
+    "Node.js": [],
+    "SQL/NoSQL Databases": [],
+    "Caching": [],
+    "Authentication": []
+  },
+  "hard": {
+    "Microservices": [],
+    "Message Queues": [],
+    "System Design": [],
+    "Concurrency": []
+  }
+}

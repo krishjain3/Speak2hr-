@@ -1,0 +1,88 @@
+{
+  "role": "full_stack_developer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T13:53:29.928001+00:00",
+  "last_updated": "2026-07-30T13:53:29.928001+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Frontend Basics": 0,
+    "Web Protocols": 0,
+    "Basic Database CRUD": 0,
+    "Version Control": 0,
+    "Frontend Framework Integration": 0,
+    "API Integration": 0,
+    "Middleware": 0,
+    "User Authorization": 0,
+    "End-to-End Architecture": 0,
+    "CI/CD": 0,
+    "Serverless": 0,
+    "Complex Databases": 0
+  },
+  "topics_completion": {
+    "Frontend Basics": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Web Protocols": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Basic Database CRUD": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Version Control": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Frontend Framework Integration": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "API Integration": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Middleware": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "User Authorization": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "End-to-End Architecture": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "CI/CD": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Serverless": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Complex Databases": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

@@ -1,0 +1,18 @@
+{
+  "role": "java_developer",
+  "easy": {
+    "OOP": [],
+    "Collections": [],
+    "Exception Handling": []
+  },
+  "medium": {
+    "Multithreading": [],
+    "JDBC": [],
+    "Spring Boot": []
+  },
+  "hard": {
+    "JVM": [],
+    "Performance": [],
+    "Distributed Systems": []
+  }
+}

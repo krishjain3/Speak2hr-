@@ -1,0 +1,88 @@
+{
+  "role": "backend_developer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T13:49:57.375090+00:00",
+  "last_updated": "2026-07-30T13:49:57.375090+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Databases": 0,
+    "REST APIs": 0,
+    "Git": 0,
+    "Linux Basics": 0,
+    "Node.js": 0,
+    "SQL/NoSQL Databases": 0,
+    "Caching": 0,
+    "Authentication": 0,
+    "Microservices": 0,
+    "Message Queues": 0,
+    "System Design": 0,
+    "Concurrency": 0
+  },
+  "topics_completion": {
+    "Databases": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "REST APIs": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Git": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Linux Basics": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Node.js": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "SQL/NoSQL Databases": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Caching": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Authentication": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Microservices": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Message Queues": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "System Design": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Concurrency": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

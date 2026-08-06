@@ -1,0 +1,70 @@
+{
+  "role": "python_developer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T13:58:48.283823+00:00",
+  "last_updated": "2026-07-30T13:58:48.283823+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Basic Syntax": 0,
+    "Data Structures": 0,
+    "Functions": 0,
+    "Advanced Python": 0,
+    "Web Frameworks (Django/Flask)": 0,
+    "Async IO": 0,
+    "Large Scale Systems": 0,
+    "Performance Optimization": 0,
+    "Metaprogramming": 0
+  },
+  "topics_completion": {
+    "Basic Syntax": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Data Structures": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Functions": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Advanced Python": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Web Frameworks (Django/Flask)": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Async IO": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Large Scale Systems": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Performance Optimization": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Metaprogramming": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

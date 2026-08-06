@@ -1,0 +1,88 @@
+{
+  "role": "data_scientist",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:05:00.700653+00:00",
+  "last_updated": "2026-07-30T14:05:00.700653+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Python": 0,
+    "NumPy": 0,
+    "Pandas": 0,
+    "Statistics": 0,
+    "Machine Learning": 0,
+    "SQL": 0,
+    "Data Cleaning": 0,
+    "Feature Engineering": 0,
+    "Deep Learning": 0,
+    "NLP": 0,
+    "MLOps": 0,
+    "Distributed Training": 0
+  },
+  "topics_completion": {
+    "Python": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "NumPy": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Pandas": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Statistics": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Machine Learning": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "SQL": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Data Cleaning": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Feature Engineering": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Deep Learning": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "NLP": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "MLOps": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Distributed Training": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

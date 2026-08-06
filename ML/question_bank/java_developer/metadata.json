@@ -1,0 +1,70 @@
+{
+  "role": "java_developer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T13:56:09.267735+00:00",
+  "last_updated": "2026-07-30T13:56:09.267735+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "OOP": 0,
+    "Collections": 0,
+    "Exception Handling": 0,
+    "Multithreading": 0,
+    "JDBC": 0,
+    "Spring Boot": 0,
+    "JVM": 0,
+    "Performance": 0,
+    "Distributed Systems": 0
+  },
+  "topics_completion": {
+    "OOP": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Collections": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Exception Handling": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Multithreading": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "JDBC": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Spring Boot": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "JVM": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Performance": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Distributed Systems": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

@@ -1,0 +1,21 @@
+{
+  "role": "data_scientist",
+  "easy": {
+    "Python": [],
+    "NumPy": [],
+    "Pandas": [],
+    "Statistics": []
+  },
+  "medium": {
+    "Machine Learning": [],
+    "SQL": [],
+    "Data Cleaning": [],
+    "Feature Engineering": []
+  },
+  "hard": {
+    "Deep Learning": [],
+    "NLP": [],
+    "MLOps": [],
+    "Distributed Training": []
+  }
+}

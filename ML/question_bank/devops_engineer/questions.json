@@ -1,0 +1,18 @@
+{
+  "role": "devops_engineer",
+  "easy": {
+    "Linux Command Line": [],
+    "Git": [],
+    "Networking": []
+  },
+  "medium": {
+    "Docker": [],
+    "CI/CD Pipelines": [],
+    "Terraform": []
+  },
+  "hard": {
+    "Kubernetes": [],
+    "Advanced Network Security": [],
+    "Multi-Cloud Orchestration": []
+  }
+}

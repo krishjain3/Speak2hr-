@@ -1,0 +1,70 @@
+{
+  "role": "devops_engineer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:10:20.178322+00:00",
+  "last_updated": "2026-07-30T14:10:20.178322+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Linux Command Line": 0,
+    "Git": 0,
+    "Networking": 0,
+    "Docker": 0,
+    "CI/CD Pipelines": 0,
+    "Terraform": 0,
+    "Kubernetes": 0,
+    "Advanced Network Security": 0,
+    "Multi-Cloud Orchestration": 0
+  },
+  "topics_completion": {
+    "Linux Command Line": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Git": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Networking": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Docker": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "CI/CD Pipelines": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Terraform": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Kubernetes": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Advanced Network Security": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Multi-Cloud Orchestration": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

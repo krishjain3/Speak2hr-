@@ -1,0 +1,18 @@
+{
+  "role": "software_engineer",
+  "easy": {
+    "Algorithms": [],
+    "Basic Data Structures": [],
+    "OOP": []
+  },
+  "medium": {
+    "Database Management": [],
+    "Testing": [],
+    "API Design": []
+  },
+  "hard": {
+    "Distributed Consensus": [],
+    "Performance Profiling": [],
+    "High-Availability": []
+  }
+}

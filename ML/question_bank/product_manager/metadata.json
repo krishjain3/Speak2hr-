@@ -1,0 +1,70 @@
+{
+  "role": "product_manager",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:21:04.540526+00:00",
+  "last_updated": "2026-07-30T14:21:04.540526+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Agile Fundamentals": 0,
+    "User Stories": 0,
+    "Market Research": 0,
+    "Roadmap Planning": 0,
+    "Prioritization": 0,
+    "Analytics": 0,
+    "Product Strategy": 0,
+    "Stakeholder Management": 0,
+    "Pricing Models": 0
+  },
+  "topics_completion": {
+    "Agile Fundamentals": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "User Stories": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Market Research": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Roadmap Planning": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Prioritization": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Analytics": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Product Strategy": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Stakeholder Management": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Pricing Models": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

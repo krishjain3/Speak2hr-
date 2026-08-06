@@ -1,0 +1,3903 @@
+{
+  "role": "frontend_developer",
+  "easy": {
+    "HTML": [
+      {
+        "question": "What is the correct HTML5 document type declaration?",
+        "question_type": "mcq",
+        "options": [
+          "<!DOCTYPE html>",
+          "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">",
+          "<doctype html>",
+          "<html doctype=\"html5\">"
+        ],
+        "correct_answer": "<!DOCTYPE html>",
+        "explanation": "<!DOCTYPE html> is the simplified, standard document type declaration used in HTML5 to inform the browser about the HTML version.",
+        "model_answer": null,
+        "expected_keywords": [
+          "doctype",
+          "html5",
+          "declaration"
+        ],
+        "skills": [
+          "HTML Document Structure",
+          "HTML Syntax Rules"
+        ],
+        "tags": [
+          "HTML5",
+          "DOCTYPE"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following tags are semantic HTML5 elements used for layout structuring? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "<article>",
+          "<div>",
+          "<header>",
+          "<span>",
+          "<nav>"
+        ],
+        "correct_answer": [
+          "<article>",
+          "<header>",
+          "<nav>"
+        ],
+        "explanation": "<article>, <header>, and <nav> are semantic tags that describe their meaning to both the developer and the browser. <div> and <span> are non-semantic containers.",
+        "model_answer": null,
+        "expected_keywords": [
+          "semantic html",
+          "layout elements",
+          "html tags"
+        ],
+        "skills": [
+          "Semantic HTML",
+          "Page Structuring"
+        ],
+        "tags": [
+          "Semantic Elements",
+          "HTML Layout"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Why is the alt attribute essential for <img> tags in HTML?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Provides alternative text for screen readers, fallback when images fail to load, and assists search engines in indexing images.",
+        "explanation": null,
+        "model_answer": "The alt attribute provides alternative text for screen readers, improving web accessibility for visually impaired users. It also displays descriptive fallback text if the image file fails to load due to network issues or broken paths. Furthermore, search engine crawlers rely on alt text to understand image content for better SEO indexing.",
+        "expected_keywords": [
+          "accessibility",
+          "screen readers",
+          "fallback text",
+          "SEO"
+        ],
+        "skills": [
+          "Web Accessibility",
+          "HTML Image Elements"
+        ],
+        "tags": [
+          "Accessibility",
+          "HTML Images",
+          "Attributes"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "You are building a user registration form that requires collecting an email address and a password. How should you define these form fields natively in HTML to ensure proper browser validation and user input security?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use <input type=\"email\"> for email validation and <input type=\"password\"> to mask characters, combining them with the required attribute.",
+        "explanation": null,
+        "model_answer": "You should use <input type=\"email\"> for the email address field to enable native browser format validation and trigger mobile-optimized keyboards. For the password field, use <input type=\"password\"> to automatically mask user input characters on screen. Both elements should include the required attribute to prevent form submission when blank.",
+        "expected_keywords": [
+          "input type email",
+          "input type password",
+          "native validation",
+          "required attribute"
+        ],
+        "skills": [
+          "HTML Form Controls",
+          "Form Validation"
+        ],
+        "tags": [
+          "HTML Forms",
+          "Input Types",
+          "User Input"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain the structural difference between block-level elements and inline elements in HTML, giving an example tag for each.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Block-level elements start on a new line and span full width; inline elements stay within the flow and take minimal necessary width.",
+        "explanation": null,
+        "model_answer": "Block-level elements always start on a new line and take up the full available width of their parent container. Inline elements do not start on a new line and only take up as much width as necessary to fit their content. Common examples include <div> or <p> for block-level elements, and <span> or <a> for inline elements.",
+        "expected_keywords": [
+          "block-level",
+          "inline elements",
+          "full width",
+          "new line"
+        ],
+        "skills": [
+          "HTML Fundamentals",
+          "Document Layout"
+        ],
+        "tags": [
+          "Block vs Inline",
+          "HTML Elements"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which HTML attribute is used to open a hyperlink in a new browser tab or window?",
+        "question_type": "mcq",
+        "options": [
+          "target=\"_blank\"",
+          "target=\"_new\"",
+          "rel=\"newpage\"",
+          "href=\"_blank\""
+        ],
+        "correct_answer": "target=\"_blank\"",
+        "explanation": "The target attribute set to '_blank' tells the browser to open the linked document in a new tab or window.",
+        "model_answer": null,
+        "expected_keywords": [
+          "target attribute",
+          "_blank",
+          "hyperlink"
+        ],
+        "skills": [
+          "HTML Navigation",
+          "Anchor Tags"
+        ],
+        "tags": [
+          "Links",
+          "Attributes",
+          "Anchor Tag"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following attributes can be used directly on HTML <input> elements to assist with client-side form validation without JavaScript? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "required",
+          "pattern",
+          "minlength",
+          "validate"
+        ],
+        "correct_answer": [
+          "required",
+          "pattern",
+          "minlength"
+        ],
+        "explanation": "'required', 'pattern', and 'minlength' are standard native HTML5 form validation attributes. 'validate' is not a valid HTML input attribute.",
+        "model_answer": null,
+        "expected_keywords": [
+          "required",
+          "pattern",
+          "minlength",
+          "form validation"
+        ],
+        "skills": [
+          "HTML Forms",
+          "Native Form Validation"
+        ],
+        "tags": [
+          "Form Attributes",
+          "HTML5 Validation"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "What is the primary purpose of the <head> element in an HTML document?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Contains document metadata, resource links, titles, and scripts that are not displayed directly in the visible body.",
+        "explanation": null,
+        "model_answer": "The <head> element acts as a container for metadata, which is information about the HTML document that is not displayed directly on the webpage. It contains elements like <title>, <meta>, and <link> that define character sets, viewport scaling, page title, and external style connections. This metadata is essential for search engine indexing and browser setup.",
+        "expected_keywords": [
+          "metadata",
+          "head element",
+          "title",
+          "browser instructions"
+        ],
+        "skills": [
+          "HTML Document Structure",
+          "Metadata Management"
+        ],
+        "tags": [
+          "HTML Structure",
+          "Head Tag",
+          "Metadata"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Describe the basic standard structure required to build an accessible and semantic data table in HTML.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Use <table> containing <thead> for column headers (<tr> and <th>) and <tbody> for data rows (<tr> and <td>).",
+        "explanation": null,
+        "model_answer": "An HTML table starts with the <table> tag container. Inside, header content is placed inside <thead> using table rows (<tr>) and table header cells (<th>). Data rows are wrapped inside <tbody> using <tr> for rows and <td> for individual table data cells. Additionally, a <caption> element can be added right after <table> to provide an accessible title.",
+        "expected_keywords": [
+          "table element",
+          "thead and tbody",
+          "tr and td",
+          "th element"
+        ],
+        "skills": [
+          "HTML Tables",
+          "Data Presentation"
+        ],
+        "tags": [
+          "Tables",
+          "Semantic HTML"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "What is the primary purpose of including <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> in an HTML document?",
+        "question_type": "mcq",
+        "options": [
+          "To make the website display in full screen mode on desktops",
+          "To control the page's dimensions and scaling on mobile devices",
+          "To load mobile-specific CSS stylesheets automatically",
+          "To restrict the page width to a fixed 1024 pixels"
+        ],
+        "correct_answer": "To control the page's dimensions and scaling on mobile devices",
+        "explanation": "The meta viewport tag instructs the browser to set the viewport width to match the screen width of the device and sets the initial zoom scale to 1.0, critical for responsive design.",
+        "model_answer": null,
+        "expected_keywords": [
+          "meta viewport",
+          "responsive design",
+          "scaling",
+          "device width"
+        ],
+        "skills": [
+          "Responsive Fundamentals",
+          "HTML Metadata"
+        ],
+        "tags": [
+          "Viewport",
+          "Meta Tag",
+          "Responsive HTML"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "A client wants to embed an MP4 video natively on their web page with playback controls enabled and a fallback message for older browsers. How would you construct this HTML markup?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use <video controls><source src=\"...\" type=\"video/mp4\">Fallback text</video>.",
+        "explanation": null,
+        "model_answer": "You would use the <video> element with the 'controls' attribute present to display default playback controls. Inside the <video> tag, include a <source> tag with 'src' pointing to the MP4 file and 'type=\"video/mp4\"'. Fallback text like 'Your browser does not support the video tag.' is placed inside the <video> tag after the source element so older browsers will show it if media embedding is unsupported.",
+        "expected_keywords": [
+          "video tag",
+          "controls attribute",
+          "source element",
+          "fallback text"
+        ],
+        "skills": [
+          "HTML Multimedia",
+          "HTML5 Video"
+        ],
+        "tags": [
+          "Video",
+          "HTML Media",
+          "Markup"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "Which of the following are HTML void elements (elements that cannot have child nodes or closing tags)? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "<img>",
+          "<br>",
+          "<input>",
+          "<p>",
+          "<meta>"
+        ],
+        "correct_answer": [
+          "<img>",
+          "<br>",
+          "<input>",
+          "<meta>"
+        ],
+        "explanation": "<img>, <br>, <input>, and <meta> are void elements in HTML because they do not enclose text or child tags and close self-sufficiently. <p> requires a separate end tag.",
+        "model_answer": null,
+        "expected_keywords": [
+          "void elements",
+          "self closing tags",
+          "html syntax"
+        ],
+        "skills": [
+          "HTML Syntax Rules",
+          "Element Types"
+        ],
+        "tags": [
+          "Void Elements",
+          "HTML Syntax"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "How does linking an HTML <label> to an <input> element using the 'for' attribute improve usability and accessibility?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "The 'for' attribute links to the input's 'id', expanding clickable hit area and announcing text to screen readers.",
+        "explanation": null,
+        "model_answer": "The 'for' attribute on a <label> matches the 'id' attribute of its target <input>, associating them programmatically. Clicking or tapping the label text automatically shifts focus to or toggles the input field, which increases the interactive touch target size. Screen readers also read the associated label text aloud when the input field is selected, significantly enhancing accessibility.",
+        "expected_keywords": [
+          "for attribute",
+          "input id",
+          "hit area",
+          "screen reader"
+        ],
+        "skills": [
+          "Web Accessibility",
+          "Form Usability"
+        ],
+        "tags": [
+          "Label",
+          "Accessibility",
+          "Forms"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Explain the difference between unordered lists (<ul>), ordered lists (<ol>), and description lists (<dl>) in HTML, specifying when each should be used.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "<ul> is for non-sequential items, <ol> for sequential numbered lists, and <dl> for term-definition key-value pairs.",
+        "explanation": null,
+        "model_answer": "Unordered lists (<ul>) display items using bullet points and are used when list item order does not change context. Ordered lists (<ol>) display items with numbers or letters, ideal for sequential steps or ranked items. Description lists (<dl>) contain term-description pairs (<dt> and <dd>), making them suitable for metadata, glossaries, or key-value data.",
+        "expected_keywords": [
+          "unordered list",
+          "ordered list",
+          "description list",
+          "list items"
+        ],
+        "skills": [
+          "HTML Lists",
+          "Content Structuring"
+        ],
+        "tags": [
+          "Lists",
+          "HTML Elements"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "What tag is used to specify character encoding as UTF-8 in an HTML document?",
+        "question_type": "mcq",
+        "options": [
+          "<meta charset=\"UTF-8\">",
+          "<encoding utf=\"8\">",
+          "<meta encoding=\"UTF-8\">",
+          "<script charset=\"UTF-8\">"
+        ],
+        "correct_answer": "<meta charset=\"UTF-8\">",
+        "explanation": "<meta charset=\"UTF-8\"> specifies the character encoding for the HTML document so browsers render text and characters correctly.",
+        "model_answer": null,
+        "expected_keywords": [
+          "meta tag",
+          "charset",
+          "UTF-8"
+        ],
+        "skills": [
+          "HTML Document Setup",
+          "Character Encoding"
+        ],
+        "tags": [
+          "Meta Tag",
+          "Charset",
+          "HTML Basics"
+        ],
+        "topic": "HTML",
+        "difficulty": "easy",
+        "estimated_time": 60
+      }
+    ],
+    "CSS": [
+      {
+        "question": "What are the four core components of the CSS Box Model, listed in order from innermost to outermost?",
+        "question_type": "mcq",
+        "options": [
+          "Content, Padding, Border, Margin",
+          "Content, Border, Padding, Margin",
+          "Margin, Border, Padding, Content",
+          "Padding, Content, Border, Margin"
+        ],
+        "correct_answer": "Content, Padding, Border, Margin",
+        "explanation": "The standard CSS box model wraps around HTML elements and consists of four layers from inside out: the actual content, padding surrounding the content, border surrounding the padding, and margin outside the border.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Content",
+          "Padding",
+          "Border",
+          "Margin"
+        ],
+        "skills": [
+          "CSS Box Model",
+          "Layout Fundamentals"
+        ],
+        "tags": [
+          "Box Model",
+          "CSS Layout"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which default value does the CSS position property hold if no position is explicitly declared on an HTML element?",
+        "question_type": "mcq",
+        "options": [
+          "relative",
+          "absolute",
+          "static",
+          "fixed"
+        ],
+        "correct_answer": "static",
+        "explanation": "Elements in CSS default to 'position: static'. Static elements follow the normal document flow and ignore top, right, bottom, left, and z-index properties.",
+        "model_answer": null,
+        "expected_keywords": [
+          "static",
+          "normal flow",
+          "default position"
+        ],
+        "skills": [
+          "CSS Positioning",
+          "Document Flow"
+        ],
+        "tags": [
+          "CSS Positioning",
+          "Layout Basics"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following CSS length units are classified as relative units? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "px",
+          "em",
+          "rem",
+          "vw",
+          "pt"
+        ],
+        "correct_answer": [
+          "em",
+          "rem",
+          "vw"
+        ],
+        "explanation": "'em' (relative to parent/element font size), 'rem' (relative to root element font size), and 'vw' (relative to 1% of viewport width) are relative units. 'px' and 'pt' are absolute units.",
+        "model_answer": null,
+        "expected_keywords": [
+          "em",
+          "rem",
+          "vw",
+          "relative units"
+        ],
+        "skills": [
+          "CSS Units",
+          "Responsive Typography"
+        ],
+        "tags": [
+          "CSS Units",
+          "Styling"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following CSS properties are used to align or distribute flex items along the main or cross axes inside a Flexbox container? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "justify-content",
+          "align-items",
+          "text-align",
+          "align-content",
+          "float"
+        ],
+        "correct_answer": [
+          "justify-content",
+          "align-items",
+          "align-content"
+        ],
+        "explanation": "'justify-content' aligns items along the main axis, while 'align-items' and 'align-content' align items along the cross axis in Flexbox. 'text-align' controls inline text alignment, and 'float' is an older layout mechanism.",
+        "model_answer": null,
+        "expected_keywords": [
+          "justify-content",
+          "align-items",
+          "align-content",
+          "Flexbox"
+        ],
+        "skills": [
+          "CSS Flexbox",
+          "Layout Alignment"
+        ],
+        "tags": [
+          "Flexbox",
+          "CSS Layout"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Explain the fundamental difference between margin and padding in CSS.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Padding creates internal space inside an element border, while margin creates external space outside the element border.",
+        "explanation": null,
+        "model_answer": "Padding is the internal spacing located inside an element's border, surrounding its content area and taking on the background styling of that element. Margin, on the other hand, is the external clearance area surrounding the outside of the element's border, used to separate it from neighboring elements. Padding affects element clickability and internal size, whereas margin is always transparent and affects layout positioning relative to siblings.",
+        "expected_keywords": [
+          "padding",
+          "margin",
+          "border",
+          "internal space",
+          "external space"
+        ],
+        "skills": [
+          "CSS Box Model",
+          "Spacing Management"
+        ],
+        "tags": [
+          "Box Model",
+          "CSS Spacing"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "What does the declaration `box-sizing: border-box` accomplish when applied to a CSS element?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "It includes an element's padding and border within its total specified width and height.",
+        "explanation": null,
+        "model_answer": "By default (`content-box`), adding padding or borders increases an element's total rendered size beyond its specified width and height. Setting `box-sizing: border-box` changes this behavior so that padding and border measurements are included inside the declared width and height. This makes sizing elements precise and prevents unexpected layout wrapping or horizontal overflow.",
+        "expected_keywords": [
+          "box-sizing",
+          "border-box",
+          "width",
+          "padding",
+          "border"
+        ],
+        "skills": [
+          "CSS Box Model",
+          "Layout Sizing"
+        ],
+        "tags": [
+          "Box Model",
+          "CSS Styling"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "You are creating a landing page banner and need to align a child div perfectly in the center (both horizontally and vertically) of a parent container using CSS Flexbox. What CSS rules should be applied to the parent container?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Apply display: flex, justify-content: center, and align-items: center to the parent container.",
+        "explanation": null,
+        "model_answer": "To center a child element both horizontally and vertically, apply `display: flex` to the parent container to convert it into a flex container. Then, add `justify-content: center` to align the child along the horizontal main axis, and `align-items: center` to align it along the vertical cross axis. Ensure the parent container has an explicit or minimum height defined so that vertical centering is effective.",
+        "expected_keywords": [
+          "display: flex",
+          "justify-content: center",
+          "align-items: center",
+          "Flexbox"
+        ],
+        "skills": [
+          "CSS Flexbox Layout",
+          "CSS Centering"
+        ],
+        "tags": [
+          "Flexbox",
+          "CSS Centering",
+          "Scenario"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "A card container on a webpage is overflowing horizontally because its child elements are wider than the container boundary. How can you ensure the container contains the overflow and allows users to scroll horizontally strictly inside the card?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Apply overflow-x: auto or overflow-x: scroll to the card container element.",
+        "explanation": null,
+        "model_answer": "To resolve horizontal overflow and enable localized scrolling, apply `overflow-x: auto` to the card container styling. This instructs the browser to clip content extending past the horizontal edges and render a horizontal scrollbar only when content overflows. Using `auto` instead of `scroll` prevents unnecessary scrollbars from appearing on screens where content fits properly.",
+        "expected_keywords": [
+          "overflow-x",
+          "auto",
+          "scroll",
+          "horizontal scroll",
+          "container overflow"
+        ],
+        "skills": [
+          "CSS Overflow Control",
+          "Responsive UI Design"
+        ],
+        "tags": [
+          "CSS Overflow",
+          "UI Layout",
+          "Scenario"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "Describe how setting `position: relative` affects an element's rendering and the document flow of surrounding elements.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "It shifts an element relative to its normal position without removing its original space from the document flow.",
+        "explanation": null,
+        "model_answer": "When an element uses `position: relative`, it remains within the standard document flow, keeping the exact space original reserved for it empty. Directional offset properties like `top`, `bottom`, `left`, and `right` visually shift the element relative to where it naturally belongs. Because surrounding elements ignore this visual displacement, the shifted element may overlap nearby elements.",
+        "expected_keywords": [
+          "position: relative",
+          "normal document flow",
+          "offset",
+          "top/left/right/bottom",
+          "space preserved"
+        ],
+        "skills": [
+          "CSS Positioning",
+          "Document Flow Mechanics"
+        ],
+        "tags": [
+          "Positioning",
+          "CSS Layout",
+          "Technical"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "How does CSS specificity determine which style rule is applied when multiple conflicting selectors target the same element?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "CSS specificity calculates a weight based on selector types: Inline styles > ID selectors > Class/Attribute/Pseudo-class selectors > Element selectors.",
+        "explanation": null,
+        "model_answer": "CSS specificity resolves selector weight conflicts through a four-tier ranking system. Inline styles possess the highest specificity, followed by ID selectors, then class, pseudo-class, and attribute selectors, and lastly element or pseudo-element selectors. When rules carry identical specificity scores, the rule defined last in the stylesheet source order takes precedence.",
+        "expected_keywords": [
+          "specificity",
+          "ID selector",
+          "class selector",
+          "inline styles",
+          "source order"
+        ],
+        "skills": [
+          "CSS Specificity",
+          "Cascade Resolution"
+        ],
+        "tags": [
+          "Specificity",
+          "CSS Cascade",
+          "Technical"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which list correctly ranks CSS selector types from highest specificity to lowest specificity?",
+        "question_type": "mcq",
+        "options": [
+          "Inline style > ID selector > Class selector > Element selector",
+          "ID selector > Inline style > Class selector > Element selector",
+          "Class selector > ID selector > Element selector > Inline style",
+          "Inline style > Class selector > ID selector > Element selector"
+        ],
+        "correct_answer": "Inline style > ID selector > Class selector > Element selector",
+        "explanation": "Specificity precedence order is inline styles (1,0,0,0), ID selectors (0,1,0,0), classes/pseudo-classes/attributes (0,0,1,0), and element/pseudo-element selectors (0,0,0,1).",
+        "model_answer": null,
+        "expected_keywords": [
+          "Inline style",
+          "ID selector",
+          "Class selector",
+          "Element selector"
+        ],
+        "skills": [
+          "CSS Specificity",
+          "Selector Rules"
+        ],
+        "tags": [
+          "Specificity",
+          "CSS Selectors"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "What is the primary difference between `display: none` and `visibility: hidden` in CSS?",
+        "question_type": "mcq",
+        "options": [
+          "display: none removes the element from the layout flow, whereas visibility: hidden hides it while preserving its space.",
+          "visibility: hidden removes the element from document flow, whereas display: none keeps its space.",
+          "display: none works only on block elements, whereas visibility: hidden works only on inline elements.",
+          "Both properties behave identically in modern web browsers."
+        ],
+        "correct_answer": "display: none removes the element from the layout flow, whereas visibility: hidden hides it while preserving its space.",
+        "explanation": "`display: none` removes the element entirely from the DOM layout tree so it takes up 0px space. `visibility: hidden` makes the element invisible, but its physical dimensions continue to occupy space in the page layout.",
+        "model_answer": null,
+        "expected_keywords": [
+          "display: none",
+          "visibility: hidden",
+          "layout flow",
+          "space"
+        ],
+        "skills": [
+          "CSS Layout",
+          "Display Properties"
+        ],
+        "tags": [
+          "Display",
+          "Visibility"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following CSS pseudo-classes are triggered based on direct user interactions? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          ":hover",
+          ":focus",
+          ":active",
+          ":nth-child()",
+          ":disabled"
+        ],
+        "correct_answer": [
+          ":hover",
+          ":focus",
+          ":active"
+        ],
+        "explanation": "`:hover` (mouse pointing), `:focus` (element selected via click or keyboard tab), and `:active` (element actively being pressed) respond to real-time user interaction states. `:nth-child()` is structural and `:disabled` represents UI state.",
+        "model_answer": null,
+        "expected_keywords": [
+          ":hover",
+          ":focus",
+          ":active",
+          "user interaction"
+        ],
+        "skills": [
+          "CSS Pseudo-classes",
+          "Interactive Styling"
+        ],
+        "tags": [
+          "Pseudo-classes",
+          "CSS Selectors"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "What is the primary purpose of the CSS `z-index` property, and what criteria must an element meet for `z-index` to work?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "z-index sets the stacking order of overlapping elements and requires a position value other than static (or flex/grid child status).",
+        "explanation": null,
+        "model_answer": "The `z-index` property controls the visual stacking order of elements that overlap along the z-axis (depth). Elements with higher `z-index` values render in front of elements with lower values. For `z-index` to take effect, the element must either have a explicit non-static position (`relative`, `absolute`, `fixed`, or `sticky`) or be a direct flex/grid child.",
+        "expected_keywords": [
+          "z-index",
+          "stacking order",
+          "position",
+          "static",
+          "z-axis"
+        ],
+        "skills": [
+          "CSS Stacking Context",
+          "CSS Positioning"
+        ],
+        "tags": [
+          "z-index",
+          "Positioning"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "A developer wants a top navigation header to move with document flow initially, but remain stuck at the top of the viewport once the user scrolls down past it. Which CSS positioning strategy should they implement?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Apply position: sticky along with top: 0 to the navigation header.",
+        "explanation": null,
+        "model_answer": "The developer should apply `position: sticky` and `top: 0` to the navigation bar. Sticky positioning acts as relative positioning while in normal page scroll, but switches to behaving like fixed positioning once its scroll threshold reaches `top: 0`. This guarantees that space is reserved for the navigation bar before scrolling while keeping it persistently reachable when scrolling down.",
+        "expected_keywords": [
+          "position: sticky",
+          "top: 0",
+          "scroll threshold",
+          "sticky positioning"
+        ],
+        "skills": [
+          "CSS Positioning",
+          "Navigation Layouts"
+        ],
+        "tags": [
+          "Positioning",
+          "Sticky Navigation",
+          "Scenario"
+        ],
+        "topic": "CSS",
+        "difficulty": "easy",
+        "estimated_time": 180
+      }
+    ],
+    "JavaScript": [
+      {
+        "question": "Which keyword in JavaScript allows you to declare a block-scoped variable that cannot be reassigned after its initial assignment?",
+        "question_type": "mcq",
+        "options": [
+          "var",
+          "let",
+          "const",
+          "static"
+        ],
+        "correct_answer": "const",
+        "explanation": "The 'const' keyword creates a read-only, block-scoped reference to a value, preventing variable reassignment after initialization.",
+        "model_answer": null,
+        "expected_keywords": [
+          "const",
+          "reassignment",
+          "block scope"
+        ],
+        "skills": [
+          "JavaScript Variable Declarations",
+          "ES6 Fundamentals"
+        ],
+        "tags": [
+          "javascript",
+          "variables",
+          "es6"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "What will `typeof null` evaluate to in standard JavaScript?",
+        "question_type": "mcq",
+        "options": [
+          "'null'",
+          "'undefined'",
+          "'object'",
+          "'boolean'"
+        ],
+        "correct_answer": "'object'",
+        "explanation": "In JavaScript, `typeof null` returning `'object'` is a legacy behavior from the original implementation where null was represented as a null pointer.",
+        "model_answer": null,
+        "expected_keywords": [
+          "typeof",
+          "null",
+          "object",
+          "primitive"
+        ],
+        "skills": [
+          "JavaScript Types",
+          "Type Checking"
+        ],
+        "tags": [
+          "javascript",
+          "data-types",
+          "operators"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following values are considered 'falsy' in JavaScript? Select all that apply.",
+        "question_type": "msq",
+        "options": [
+          "0",
+          "\"\"",
+          "[]",
+          "undefined",
+          "{}"
+        ],
+        "correct_answer": [
+          "0",
+          "\"\"",
+          "undefined"
+        ],
+        "explanation": "In JavaScript, `0`, `\"\"` (empty string), `null`, `undefined`, `NaN`, and `false` are falsy values. Empty arrays `[]` and empty objects `{}` are truthy objects.",
+        "model_answer": null,
+        "expected_keywords": [
+          "falsy",
+          "boolean conversion",
+          "truthy"
+        ],
+        "skills": [
+          "Type Coercion",
+          "Boolean Logic"
+        ],
+        "tags": [
+          "javascript",
+          "booleans",
+          "type-coercion"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "What is the primary difference between the double equals (`==`) and triple equals (`===`) operators in JavaScript?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "The double equals (`==`) performs type coercion before comparison, while triple equals (`===`) checks both value and type equality without coercion.",
+        "explanation": null,
+        "model_answer": "The double equals (`==`) operator compares two values for equality after performing implicit type coercion if the types differ. In contrast, the strict equality operator (`===`) checks both value and data type without coercing types. Using `===` is recommended in modern JavaScript to prevent unexpected bugs caused by implicit coercion.",
+        "expected_keywords": [
+          "type coercion",
+          "strict equality",
+          "loose equality",
+          "value and type"
+        ],
+        "skills": [
+          "Equality Comparison",
+          "Type Coercion"
+        ],
+        "tags": [
+          "javascript",
+          "operators",
+          "equality"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "A developer notices that `this.count` is `undefined` inside a `setTimeout` callback function when using a traditional function declaration. How can this issue be solved using ES6 functions?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Replace the traditional callback function with an ES6 arrow function, which lexically binds the `this` context from the outer scope.",
+        "explanation": null,
+        "model_answer": "The developer can replace the traditional callback function with an ES6 arrow function inside `setTimeout`. Arrow functions do not define their own `this` context; instead, they lexically inherit `this` from the enclosing scope where the method was declared. This ensures `this.count` correctly references the parent object's property.",
+        "expected_keywords": [
+          "arrow function",
+          "lexical this",
+          "lexical binding",
+          "this context"
+        ],
+        "skills": [
+          "ES6 Arrow Functions",
+          "Context & Scope"
+        ],
+        "tags": [
+          "javascript",
+          "arrow-functions",
+          "this-keyword"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "Which of the following JavaScript Array methods return a new array without mutating the original array? Select all that apply.",
+        "question_type": "msq",
+        "options": [
+          "map()",
+          "filter()",
+          "push()",
+          "slice()",
+          "splice()"
+        ],
+        "correct_answer": [
+          "map()",
+          "filter()",
+          "slice()"
+        ],
+        "explanation": "`map()`, `filter()`, and `slice()` are non-mutating methods that create and return a new array. `push()` and `splice()` mutate the original array in place.",
+        "model_answer": null,
+        "expected_keywords": [
+          "immutability",
+          "non-mutating",
+          "array methods"
+        ],
+        "skills": [
+          "Array Operations",
+          "Immutability"
+        ],
+        "tags": [
+          "javascript",
+          "arrays",
+          "es6"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which syntax is used to create template literals for multi-line strings and string interpolation in JavaScript?",
+        "question_type": "mcq",
+        "options": [
+          "Single quotes (')",
+          "Double quotes (\")",
+          "Backticks (`)",
+          "Forward slashes (/)"
+        ],
+        "correct_answer": "Backticks (`)",
+        "explanation": "Template literals are enclosed by backtick (`) characters and support embedded expressions formatted with `${expression}` syntax.",
+        "model_answer": null,
+        "expected_keywords": [
+          "backticks",
+          "template literals",
+          "string interpolation"
+        ],
+        "skills": [
+          "Template Literals",
+          "String Formatting"
+        ],
+        "tags": [
+          "javascript",
+          "strings",
+          "es6"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Explain variable hoisting in JavaScript when declaring variables using the `var` keyword.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Hoisting moves `var` declarations to the top of their scope during compilation, initializing them with `undefined` prior to execution.",
+        "explanation": null,
+        "model_answer": "Variable hoisting is JavaScript's behavior of moving variable declarations to the top of their containing scope during compilation. When a variable is declared using `var`, its declaration is hoisted and initialized with a value of `undefined`. This allows the variable to be referenced before its line of declaration without throwing a ReferenceError.",
+        "expected_keywords": [
+          "hoisting",
+          "declaration",
+          "undefined",
+          "compilation phase"
+        ],
+        "skills": [
+          "JavaScript Execution Context",
+          "Hoisting Concept"
+        ],
+        "tags": [
+          "javascript",
+          "hoisting",
+          "scoping"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Write a line of JavaScript code to attach a 'click' event listener to a button element stored in a variable `btn` that executes a function named `handleClick`.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "btn.addEventListener('click', handleClick);",
+        "explanation": null,
+        "model_answer": "To attach an event listener to an element in DOM manipulation, call `btn.addEventListener('click', handleClick);`. This registers `handleClick` to be called whenever the click event fires on `btn`. Passing the function reference without parenthesis ensures it executes only when the event occurs.",
+        "expected_keywords": [
+          "addEventListener",
+          "click",
+          "handleClick",
+          "event listener"
+        ],
+        "skills": [
+          "DOM Event Handling",
+          "JavaScript Web APIs"
+        ],
+        "tags": [
+          "javascript",
+          "dom",
+          "events"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which of the following values will trigger the right-hand default value when used as the left operand with the nullish coalescing operator (`??`)? Select all that apply.",
+        "question_type": "msq",
+        "options": [
+          "null",
+          "undefined",
+          "0",
+          "\"\"",
+          "false"
+        ],
+        "correct_answer": [
+          "null",
+          "undefined"
+        ],
+        "explanation": "The nullish coalescing operator (`??`) evaluates to its right-hand side ONLY when its left-hand side is `null` or `undefined`, unlike `||` which checks for any falsy value like `0`, `\"\"`, or `false`.",
+        "model_answer": null,
+        "expected_keywords": [
+          "nullish coalescing",
+          "null",
+          "undefined",
+          "fallback value"
+        ],
+        "skills": [
+          "ES2020 Features",
+          "Operators"
+        ],
+        "tags": [
+          "javascript",
+          "operators",
+          "nullish-coalescing"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which standard Array method adds one or more elements to the beginning of an array and returns the array's new length?",
+        "question_type": "mcq",
+        "options": [
+          "push()",
+          "pop()",
+          "shift()",
+          "unshift()"
+        ],
+        "correct_answer": "unshift()",
+        "explanation": "`unshift()` prepends elements to the start of an array, while `push()` appends to the end, `shift()` removes from the start, and `pop()` removes from the end.",
+        "model_answer": null,
+        "expected_keywords": [
+          "unshift",
+          "array methods",
+          "beginning of array"
+        ],
+        "skills": [
+          "Array Methods",
+          "Data Manipulation"
+        ],
+        "tags": [
+          "javascript",
+          "arrays",
+          "methods"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "How do you reliably check if a variable `val` holds the specific value `NaN` in modern JavaScript?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Use `Number.isNaN(val)` or check `val !== val`.",
+        "explanation": null,
+        "model_answer": "In modern JavaScript, the most reliable method is using `Number.isNaN(val)`. Unlike global `isNaN()`, `Number.isNaN()` does not attempt type coercion before checking. Alternatively, since `NaN` is the only value in JavaScript not equal to itself, checking `val !== val` also evaluates to `true` exclusively for `NaN`.",
+        "expected_keywords": [
+          "Number.isNaN",
+          "isNaN",
+          "type coercion",
+          "self-comparison"
+        ],
+        "skills": [
+          "Numeric Types",
+          "Type Handling"
+        ],
+        "tags": [
+          "javascript",
+          "numbers",
+          "type-checking"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "You attach a JavaScript submit handler to an HTML form, but notice the browser reloads the entire web page upon submission. What event method should be called to stop this default reload behavior?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Call `event.preventDefault()` inside the event handler function.",
+        "explanation": null,
+        "model_answer": "In the form submit event callback, invoke `event.preventDefault()`. Browser forms trigger an HTTP POST or GET page reload by default upon submission. Invoking `event.preventDefault()` prevents this default browser behavior, allowing JavaScript to process the submission asynchronously via fetch or AJAX.",
+        "expected_keywords": [
+          "preventDefault",
+          "event.preventDefault",
+          "submit event",
+          "page reload"
+        ],
+        "skills": [
+          "Event Handling",
+          "DOM Events"
+        ],
+        "tags": [
+          "javascript",
+          "dom",
+          "event-handling"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "What are the three possible states of a JavaScript Promise?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Pending, Fulfilled (Resolved), and Rejected.",
+        "explanation": null,
+        "model_answer": "A JavaScript Promise exists in one of three states: pending, fulfilled, or rejected. A newly created promise starts in the pending state. If the underlying operation finishes successfully, it shifts to fulfilled, and if an error occurs, it shifts to rejected.",
+        "expected_keywords": [
+          "pending",
+          "fulfilled",
+          "rejected",
+          "promise states"
+        ],
+        "skills": [
+          "Asynchronous JavaScript",
+          "Promises"
+        ],
+        "tags": [
+          "javascript",
+          "promises",
+          "async"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Explain the ES6 object destructuring feature and provide a simple code syntax example.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Object destructuring is an ES6 syntax that unpacks properties from objects into individual variables, e.g., `const { name, age } = person;`.",
+        "explanation": null,
+        "model_answer": "ES6 Object Destructuring allows extracting specific properties from an object and assigning them directly to distinct variables using a clean, concise syntax. For instance, instead of writing `const name = user.name;`, you write `const { name } = user;`. This syntax reduces boilerplate code when working with complex object parameters.",
+        "expected_keywords": [
+          "destructuring",
+          "unpacking",
+          "object properties",
+          "syntax"
+        ],
+        "skills": [
+          "ES6 Syntax",
+          "Object Operations"
+        ],
+        "tags": [
+          "javascript",
+          "es6",
+          "destructuring"
+        ],
+        "topic": "JavaScript",
+        "difficulty": "easy",
+        "estimated_time": 120
+      }
+    ],
+    "Responsive Design": [
+      {
+        "question": "What does the 'mobile-first' approach in responsive web design mean, and how is it typically implemented using CSS media queries?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Mobile-first design creates base CSS for mobile viewports and uses min-width media queries to add styles for larger screens.",
+        "explanation": null,
+        "model_answer": "The mobile-first approach involves designing and building the website for smaller mobile screens first as the baseline layout, then progressively enhancing the layout for larger viewports. In CSS, base styles are written without media queries to target small screens. Developers then use 'min-width' media queries to layer on styles as screen widths increase.",
+        "expected_keywords": [
+          "mobile-first",
+          "min-width",
+          "progressive enhancement",
+          "base styles"
+        ],
+        "skills": [
+          "Mobile-First Strategy",
+          "CSS Media Queries"
+        ],
+        "tags": [
+          "mobile-first",
+          "media-queries",
+          "css"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which of the following units are relative CSS units commonly used to create responsive layouts? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "vw (viewport width)",
+          "% (percentage)",
+          "px (pixels)",
+          "rem (root em)",
+          "pt (points)"
+        ],
+        "correct_answer": [
+          "vw (viewport width)",
+          "% (percentage)",
+          "rem (root em)"
+        ],
+        "explanation": "'vw', '%', and 'rem' are relative units because their calculated sizes scale based on viewport width, parent element width, or root font size, respectively. 'px' and 'pt' are absolute measurement units.",
+        "model_answer": null,
+        "expected_keywords": [
+          "relative units",
+          "rem",
+          "vw",
+          "percentage"
+        ],
+        "skills": [
+          "CSS Units",
+          "Fluid Layout Construction"
+        ],
+        "tags": [
+          "css-units",
+          "responsive-units",
+          "fluid-design"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "You need to display a compact, tightly cropped hero banner image on mobile devices and a full wide banner image on desktop viewports to optimize layout and bandwidth. How should you implement this natively in HTML?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use the HTML <picture> element containing <source> tags with media attributes to conditionally load separate images based on viewport width.",
+        "explanation": null,
+        "model_answer": "To serve different cropped image assets based on viewport size, use the HTML `<picture>` element wrapping multiple `<source>` tags alongside an `<img>` fallback tag. Each `<source>` element specifies a `media` attribute query (e.g., `media=\"(min-width: 768px)\"`) and a `srcset` pointing to the appropriate image asset. The browser evaluates these conditions and downloads only the single matching image file.",
+        "expected_keywords": [
+          "picture element",
+          "source tag",
+          "media attribute",
+          "srcset"
+        ],
+        "skills": [
+          "Responsive Images",
+          "HTML5 Media Techniques"
+        ],
+        "tags": [
+          "picture-tag",
+          "responsive-images",
+          "performance"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "Write a CSS media query that targets screens with a maximum width of 768px and sets the body font size to 14px.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "@media (max-width: 768px) { body { font-size: 14px; } }",
+        "explanation": null,
+        "model_answer": "To target screens with a maximum width of 768 pixels, write the rule as: `@media (max-width: 768px) { body { font-size: 14px; } }`. This applies the specified font size rule only when the viewport width is equal to or less than 768 pixels.",
+        "expected_keywords": [
+          "@media",
+          "max-width",
+          "768px",
+          "body"
+        ],
+        "skills": [
+          "CSS Syntax",
+          "Media Query Implementation"
+        ],
+        "tags": [
+          "media-queries",
+          "css-syntax",
+          "breakpoints"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Why is setting 'max-width: 100%; height: auto;' on image elements considered a fundamental practice in responsive design?",
+        "question_type": "mcq",
+        "options": [
+          "It accelerates image load times on slow 3G networks",
+          "It prevents images from overflowing their parent container while maintaining aspect ratio",
+          "It forces all images to convert into square thumbnails on smaller screens",
+          "It centers images horizontally inside flexbox containers"
+        ],
+        "correct_answer": "It prevents images from overflowing their parent container while maintaining aspect ratio",
+        "explanation": "Setting 'max-width: 100%' ensures an image scales down dynamically if its parent container becomes narrower than the image's intrinsic width, preventing horizontal scrollbars. Setting 'height: auto' ensures the height resizes proportionally, maintaining the original aspect ratio.",
+        "model_answer": null,
+        "expected_keywords": [
+          "max-width",
+          "height auto",
+          "aspect ratio",
+          "overflow"
+        ],
+        "skills": [
+          "Fluid Media Handling",
+          "Responsive CSS Fundamentals"
+        ],
+        "tags": [
+          "images",
+          "max-width",
+          "fluid-layout"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following CSS viewport units adapt relative to the dimensions of the browser's current viewport? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "vh",
+          "vw",
+          "vmin",
+          "ch",
+          "vmax"
+        ],
+        "correct_answer": [
+          "vh",
+          "vw",
+          "vmin",
+          "vmax"
+        ],
+        "explanation": "'vh' (viewport height), 'vw' (viewport width), 'vmin' (minimum of vw/vh), and 'vmax' (maximum of vw/vh) are viewport-percentage lengths. 'ch' is a typography relative unit based on the width of the '0' character.",
+        "model_answer": null,
+        "expected_keywords": [
+          "vh",
+          "vw",
+          "vmin",
+          "vmax"
+        ],
+        "skills": [
+          "CSS Viewport Units",
+          "Responsive Sizing"
+        ],
+        "tags": [
+          "viewport-units",
+          "css",
+          "responsive-metrics"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "How does applying 'flex-wrap: wrap;' to a Flexbox container contribute to making a web layout responsive?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "It allows flex items to wrap onto multiple lines when horizontal space is constrained rather than overflowing or squishing.",
+        "explanation": null,
+        "model_answer": "Applying 'flex-wrap: wrap;' allows flex children to break onto new lines when the total width of the children exceeds the container width. This prevents flex items from overflowing or shrinking beyond their minimum content size on smaller viewports. It enables multi-column layouts on desktop to gracefully stack vertically on mobile displays.",
+        "expected_keywords": [
+          "flex-wrap",
+          "wrap",
+          "multiple lines",
+          "overflow",
+          "stack"
+        ],
+        "skills": [
+          "CSS Flexbox Layouts",
+          "Responsive Layout Adaptation"
+        ],
+        "tags": [
+          "flexbox",
+          "flex-wrap",
+          "responsive-layout"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "A card container on a mobile screen causes unwanted horizontal scrolling because of a long uninterrupted URL string in the text. Which CSS text-wrapping properties can prevent this overflow?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use 'overflow-wrap: break-word' or 'word-break: break-word' on the text element to force long text strings to break across lines.",
+        "explanation": null,
+        "model_answer": "To prevent long text strings like URLs from forcing horizontal layout overflow on narrow mobile viewports, apply CSS properties like `overflow-wrap: break-word;` or `word-break: break-all;` (or `break-word`) to the text element. This forces the browser to break the string across multiple lines when it exceeds the width of its container. Additionally, ensure the card has a flexible width such as `max-width: 100%`.",
+        "expected_keywords": [
+          "overflow-wrap",
+          "break-word",
+          "word-break",
+          "horizontal scroll"
+        ],
+        "skills": [
+          "Responsive Typography",
+          "Layout Debugging"
+        ],
+        "tags": [
+          "overflow-wrap",
+          "typography",
+          "mobile-fix"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "When defining media query breakpoints for a responsive website, what is considered standard best practice?",
+        "question_type": "mcq",
+        "options": [
+          "Base breakpoints strictly on the exact screen dimensions of specific target devices like iPhones and iPads",
+          "Base breakpoints on where the content layout naturally breaks or degrades as the viewport resizes",
+          "Create fixed breakpoints every 100 pixels to ensure all possible screen sizes are covered",
+          "Use only one single breakpoint at 1024px for desktop and mobile separation"
+        ],
+        "correct_answer": "Base breakpoints on where the content layout naturally breaks or degrades as the viewport resizes",
+        "explanation": "Best practice dictates setting breakpoints based on content needs rather than specific hardware device models. Device sizes constantly change, so designing around content breakpoints ensures the layout looks well-structured across all current and future viewport dimensions.",
+        "model_answer": null,
+        "expected_keywords": [
+          "breakpoints",
+          "content-driven",
+          "viewport",
+          "device-independent"
+        ],
+        "skills": [
+          "Responsive Strategy",
+          "Breakpoint Selection"
+        ],
+        "tags": [
+          "breakpoints",
+          "best-practices",
+          "design-strategy"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Explain how the CSS 'clamp()' function works for responsive typography and identify its three required parameters.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "clamp() sets a fluid value bounded by a minimum, preferred (fluid), and maximum value parameter.",
+        "explanation": null,
+        "model_answer": "The CSS `clamp()` function enables fluid values that scale between a defined minimum and maximum limit based on viewport size. It accepts three parameters in order: a minimum value, a preferred value (usually incorporating viewport units like `vw`), and a maximum value (e.g., `clamp(1rem, 2.5vw, 2rem)`). This eliminates the need for multiple media queries to step-change text sizes across screens.",
+        "expected_keywords": [
+          "clamp",
+          "minimum",
+          "preferred value",
+          "maximum"
+        ],
+        "skills": [
+          "Fluid Typography",
+          "Modern CSS Functions"
+        ],
+        "tags": [
+          "clamp",
+          "fluid-typography",
+          "css-functions"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which of the following characteristics accurately describe a fluid grid layout in responsive web design? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "Layout elements use percentage-based dimensions instead of fixed pixel dimensions",
+          "Columns and spacing scale proportionally relative to their parent container or viewport",
+          "Grid dimensions remain entirely static regardless of browser window resizing",
+          "Fluid grids allow layouts to smoothly resize between explicit CSS breakpoint limits"
+        ],
+        "correct_answer": [
+          "Layout elements use percentage-based dimensions instead of fixed pixel dimensions",
+          "Columns and spacing scale proportionally relative to their parent container or viewport",
+          "Fluid grids allow layouts to smoothly resize between explicit CSS breakpoint limits"
+        ],
+        "explanation": "Fluid layouts use relative values (like percentages) to allow elements to continuously resize in proportion to the viewport or container size. Static fixed-pixel dimensions are the opposite of a fluid grid.",
+        "model_answer": null,
+        "expected_keywords": [
+          "percentage-based",
+          "proportional scaling",
+          "fluid grid"
+        ],
+        "skills": [
+          "Fluid Grid Systems",
+          "Layout Principles"
+        ],
+        "tags": [
+          "fluid-grid",
+          "responsive-layout",
+          "css"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Why is understanding the concept of Device Pixel Ratio (DPR) or pixel density important when serving responsive images?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "DPR indicates physical hardware pixels per CSS pixel, requiring higher-resolution image assets for sharp rendering on High-DPI displays.",
+        "explanation": null,
+        "model_answer": "Device Pixel Ratio (DPR) represents the ratio of physical hardware pixels to logical CSS pixels on a display screen. High-DPI screens (like Retina displays) have a DPR of 2x or 3x, meaning standard images can appear blurry. Understanding DPR allows developers to supply higher-density image variants (using `srcset` pixel descriptors like `2x`) so images display crisp on high-end devices without wasting bandwidth on lower-density screens.",
+        "expected_keywords": [
+          "device pixel ratio",
+          "DPR",
+          "physical pixels",
+          "srcset",
+          "high-density"
+        ],
+        "skills": [
+          "Responsive Image Delivery",
+          "Display Density Concepts"
+        ],
+        "tags": [
+          "dpr",
+          "pixel-density",
+          "responsive-images"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      },
+      {
+        "question": "You need to build a navigation bar that shows full inline links on desktop viewports, but hides those links and displays a toggleable mobile hamburger menu icon on viewports under 768px. Describe the CSS media query strategy to achieve this.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "In mobile-first CSS, show the hamburger menu and hide desktop links by default, then use a min-width: 768px media query to display the desktop menu and hide the hamburger icon.",
+        "explanation": null,
+        "model_answer": "Following a mobile-first approach, write base styles where the inline desktop links wrapper is set to `display: none;` and the mobile hamburger toggle icon is visible (`display: block;`). Inside a media query targeting `@media (min-width: 768px)`, set the mobile toggle button to `display: none;` and change the inline links wrapper to `display: flex;` (or `display: block;`). This cleanly toggles component layouts based on viewport width.",
+        "expected_keywords": [
+          "min-width",
+          "display: none",
+          "display: flex",
+          "hamburger"
+        ],
+        "skills": [
+          "Responsive Navigation Patterns",
+          "CSS Viewport Structuring"
+        ],
+        "tags": [
+          "navigation",
+          "media-queries",
+          "component-design"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 180
+      },
+      {
+        "question": "What is the primary difference between CSS Container Queries (@container) and traditional CSS Media Queries (@media)?",
+        "question_type": "mcq",
+        "options": [
+          "Container queries evaluate the size of a specific parent container element, whereas media queries evaluate the size of the overall browser viewport",
+          "Media queries are used for mobile layouts, whereas container queries can only be used for desktop monitor layouts",
+          "Container queries require JavaScript execution, whereas media queries run natively in CSS",
+          "Media queries scale font sizes automatically, whereas container queries scale image pixel ratios"
+        ],
+        "correct_answer": "Container queries evaluate the size of a specific parent container element, whereas media queries evaluate the size of the overall browser viewport",
+        "explanation": "Media queries (`@media`) re-style elements based on viewport or screen dimensions. Container queries (`@container`) re-style elements based on the width or height of their direct ancestor containing element, making reusable component-level responsive design much easier.",
+        "model_answer": null,
+        "expected_keywords": [
+          "container queries",
+          "viewport",
+          "parent container",
+          "component responsive"
+        ],
+        "skills": [
+          "Modern CSS Architecture",
+          "Container Queries"
+        ],
+        "tags": [
+          "container-queries",
+          "media-queries",
+          "modern-css"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 60
+      },
+      {
+        "question": "Why is the <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> tag essential in responsive web design, and what issue occurs on mobile devices if it is omitted?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "The viewport meta tag instructs mobile browsers to set the layout viewport to the device's native screen width at a 1:1 scale. Without it, mobile browsers assume a desktop layout width (typically around 980px) and scale the page down, causing elements to render visually tiny.",
+        "explanation": null,
+        "model_answer": "The viewport meta tag is essential because it instructs mobile browsers to render the page layout matching the actual screen width of the device rather than a default desktop view. Setting 'width=device-width' ensures media queries accurately respond to device screen dimensions, while 'initial-scale=1.0' sets the baseline zoom level to 100%. If omitted, mobile browsers fall back to a desktop viewport width (usually 980px) and shrink the layout, rendering text and UI elements unnaturally small and forcing users to manually zoom.",
+        "expected_keywords": [
+          "viewport",
+          "device-width",
+          "initial-scale",
+          "desktop layout viewport",
+          "mobile zoom"
+        ],
+        "skills": [
+          "Responsive Web Design",
+          "HTML Metadata",
+          "Mobile Optimization"
+        ],
+        "tags": [
+          "viewport",
+          "html",
+          "mobile-first"
+        ],
+        "topic": "Responsive Design",
+        "difficulty": "easy",
+        "estimated_time": 120
+      }
+    ]
+  },
+  "medium": {
+    "React": [
+      {
+        "question": "Which of the following are valid primary use cases for the `useRef` hook in React? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "Accessing and manipulating DOM nodes directly",
+          "Storing mutable state values that do not trigger re-renders when changed",
+          "Replacing Redux for global application state management",
+          "Storing timer IDs or previous props/state values across renders"
+        ],
+        "correct_answer": [
+          "Accessing and manipulating DOM nodes directly",
+          "Storing mutable state values that do not trigger re-renders when changed",
+          "Storing timer IDs or previous props/state values across renders"
+        ],
+        "explanation": "`useRef` provides a mutable ref object whose `.current` property persists across re-renders without causing a component re-render when mutated. It is commonly used for direct DOM access, storing timer IDs, and holding instance variables.",
+        "model_answer": null,
+        "expected_keywords": [
+          "mutable reference",
+          "DOM manipulation",
+          "re-render prevention",
+          "persisted value"
+        ],
+        "skills": [
+          "React Hooks",
+          "DOM Manipulation"
+        ],
+        "tags": [
+          "React",
+          "useRef",
+          "Hooks"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Your team notices memory leaks in a React application caused by asynchronous API calls completing after a component unmounts. How should you structure a `useEffect` hook to prevent state updates on unmounted components?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use a cleanup function with a boolean flag or AbortController to cancel or ignore async updates if the component unmounts.",
+        "explanation": null,
+        "model_answer": "To prevent memory leaks from unmounted components, you should return a cleanup function inside `useEffect`. Utilizing an `AbortController` to cancel pending fetch requests or maintaining a boolean flag (`isMounted`) that flips to `false` during cleanup ensures state setters are not called post-unmount. This guarantees clean side-effect management during component lifecycle changes.",
+        "expected_keywords": [
+          "cleanup function",
+          "AbortController",
+          "unmount",
+          "useEffect",
+          "memory leak"
+        ],
+        "skills": [
+          "React Hooks Lifecycle",
+          "Memory Management"
+        ],
+        "tags": [
+          "React",
+          "useEffect",
+          "Async"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain how to design a custom React hook `useFetch(url)` to handle API calls, including loading, data, and error state tracking.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Create a custom function starting with 'use' that manages data, loading, and error states using useState and useEffect.",
+        "explanation": null,
+        "model_answer": "A custom `useFetch(url)` hook encapsulates fetch logic by initializing three state variables using `useState`: `data`, `loading`, and `error`. Inside a `useEffect` dependent on `url`, reset loading to true and trigger the fetch request inside a try-catch block to update `data` or `error` accordingly. Return an object containing `{ data, loading, error }` so consuming components cleanly share request logic.",
+        "expected_keywords": [
+          "custom hook",
+          "useState",
+          "useEffect",
+          "error handling",
+          "loading state"
+        ],
+        "skills": [
+          "Custom Hooks",
+          "React Architecture"
+        ],
+        "tags": [
+          "React",
+          "Hooks",
+          "Custom Hooks"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Why are unique `key` props necessary when rendering dynamic lists in React, and why is using array index as a key an anti-pattern in dynamic lists?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Keys help React's reconciliation algorithm identify which items changed, added, or removed. Index keys break state stability when items reorder.",
+        "explanation": null,
+        "model_answer": "Unique `key` props assist React's reconciliation algorithm in uniquely identifying list items to efficiently handle insertions, updates, and deletions. Using array indices as keys is an anti-pattern when list order changes, as reordering shifts indices and causes React to misidentify component identities, leading to incorrect local state preservation and unnecessary DOM updates.",
+        "expected_keywords": [
+          "reconciliation",
+          "diffing algorithm",
+          "component identity",
+          "reordering",
+          "local state"
+        ],
+        "skills": [
+          "React Reconciliation",
+          "Virtual DOM"
+        ],
+        "tags": [
+          "React",
+          "Reconciliation",
+          "Keys"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "When a React Context value updates, which consuming components will re-render?",
+        "question_type": "mcq",
+        "options": [
+          "Only the direct children of the Context Provider.",
+          "All components that consume that Context via `useContext` or `Context.Consumer`.",
+          "Only components wrapped with `React.memo`.",
+          "Every single component in the entire application subtree regardless of context usage."
+        ],
+        "correct_answer": "All components that consume that Context via `useContext` or `Context.Consumer`.",
+        "explanation": "When the value passed to a `Context.Provider` changes, all descendant components that consume that context re-render automatically, bypassing `React.memo` or `shouldComponentUpdate` checks.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Context API",
+          "useContext",
+          "re-render",
+          "Provider"
+        ],
+        "skills": [
+          "React Context API",
+          "State Management"
+        ],
+        "tags": [
+          "React",
+          "Context API",
+          "Re-render"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following statements accurately reflect the 'Rules of Hooks' in React? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "Hooks must only be called at the top level of React functions.",
+          "Hooks can be called conditionally inside `if` statements as long as the condition depends on props.",
+          "Hooks can be called inside custom React Hooks.",
+          "Hooks must not be called inside regular JavaScript functions or nested loops."
+        ],
+        "correct_answer": [
+          "Hooks must only be called at the top level of React functions.",
+          "Hooks can be called inside custom React Hooks.",
+          "Hooks must not be called inside regular JavaScript functions or nested loops."
+        ],
+        "explanation": "React relies on the call order of hooks across renders. Calling hooks inside conditions, loops, or regular nested JS functions breaks this call sequence, causing unexpected bugs.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Rules of Hooks",
+          "top level",
+          "call order",
+          "custom hooks"
+        ],
+        "skills": [
+          "React Hooks Rules",
+          "React Internals"
+        ],
+        "tags": [
+          "React",
+          "Hooks",
+          "Rules of Hooks"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "You have a deep component tree where a theme string needs to be accessed by a component 5 levels down. Explain how you would refactor this to eliminate prop drilling without adding external dependencies.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Create a React Context for the theme, wrap the parent with ThemeContext.Provider, and consume it in the deep child via useContext.",
+        "explanation": null,
+        "model_answer": "To eliminate prop drilling, create a context using `React.createContext()` to hold the theme state. Wrap the higher-level parent container with `<ThemeContext.Provider value={theme}>`. The deeply nested component can then consume the theme directly using the `useContext(ThemeContext)` hook, completely removing intermediate prop forwarding.",
+        "expected_keywords": [
+          "createContext",
+          "useContext",
+          "Context Provider",
+          "prop drilling"
+        ],
+        "skills": [
+          "React Context API",
+          "Component Architecture"
+        ],
+        "tags": [
+          "React",
+          "Context",
+          "Prop Drilling"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "What is a React Error Boundary, what lifecycle methods define it, and why can it not catch errors in event handlers?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Error Boundaries catch JavaScript errors anywhere in child component trees using static getDerivedStateFromError or componentDidCatch. Event handlers execute outside the render phase.",
+        "explanation": null,
+        "model_answer": "An Error Boundary is a class component that catches JavaScript errors in its child component tree and renders a fallback UI. It relies on `static getDerivedStateFromError` to update state and `componentDidCatch` to log error details. It cannot catch errors in event handlers because event handlers trigger outside the React render cycle during asynchronous browser event dispatching.",
+        "expected_keywords": [
+          "Error Boundary",
+          "componentDidCatch",
+          "getDerivedStateFromError",
+          "render cycle",
+          "event handlers"
+        ],
+        "skills": [
+          "React Error Handling",
+          "Class Components"
+        ],
+        "tags": [
+          "React",
+          "Error Boundary",
+          "Lifecycle"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "When should you prefer using `useReducer` over `useState` for state management in a React component?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Prefer useReducer when state logic is complex, involves multiple sub-values, or when the next state depends on the previous state in intricate ways.",
+        "explanation": null,
+        "model_answer": "`useReducer` is preferred over `useState` when state logic becomes complex, involving multiple interconnected sub-values or conditional transitions. It is also beneficial when the next state depends closely on previous state values or when dispatching actions across deeply nested components optimizes testing and readability.",
+        "expected_keywords": [
+          "complex state logic",
+          "reducer function",
+          "dispatch",
+          "action",
+          "useState"
+        ],
+        "skills": [
+          "React State Management",
+          "useReducer"
+        ],
+        "tags": [
+          "React",
+          "Hooks",
+          "useReducer"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "What causes a 'stale closure' inside a React `useEffect` hook?",
+        "question_type": "mcq",
+        "options": [
+          "Omitting a state variable from the dependency array while referencing it inside the effect function.",
+          "Calling `setState` asynchronously without using a callback pattern.",
+          "Rendering a component using `React.memo` with empty props.",
+          "Using inline arrow functions as props in JSX elements."
+        ],
+        "correct_answer": "Omitting a state variable from the dependency array while referencing it inside the effect function.",
+        "explanation": "If a variable captured from the outer scope is referenced inside `useEffect` but omitted from its dependency array, the effect closure permanently references the stale state/prop value captured during its initial render execution.",
+        "model_answer": null,
+        "expected_keywords": [
+          "stale closure",
+          "dependency array",
+          "useEffect",
+          "scope"
+        ],
+        "skills": [
+          "React Hooks",
+          "JavaScript Closure in React"
+        ],
+        "tags": [
+          "React",
+          "useEffect",
+          "Closure"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following methods are valid strategies to prevent unnecessary re-renders of React child components? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "Wrapping the child component with `React.memo`",
+          "Memoizing object/array props using `useMemo` in the parent component",
+          "Passing functions wrapped in `useCallback` instead of inline functions",
+          "Calling `forceUpdate()` on the parent component after state updates"
+        ],
+        "correct_answer": [
+          "Wrapping the child component with `React.memo`",
+          "Memoizing object/array props using `useMemo` in the parent component",
+          "Passing functions wrapped in `useCallback` instead of inline functions"
+        ],
+        "explanation": "`React.memo` prevents re-renders when props don't change. `useMemo` and `useCallback` keep object and function prop references stable between parent renders, preventing `React.memo` components from re-rendering due to changed object/function references.",
+        "model_answer": null,
+        "expected_keywords": [
+          "React.memo",
+          "useCallback",
+          "useMemo",
+          "referential equality"
+        ],
+        "skills": [
+          "React Performance Optimization",
+          "Re-render Prevention"
+        ],
+        "tags": [
+          "React",
+          "Performance",
+          "Optimization"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "You need to build a complex multi-step form with 20 input fields. Explain the architectural trade-offs between implementing Controlled Components versus Uncontrolled Components using `useRef`.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Controlled components manage state in React and re-render on every keystroke, offering instant validation but lower performance; uncontrolled components query the DOM via refs on submit, improving performance.",
+        "explanation": null,
+        "model_answer": "Controlled components maintain form state in React state (`useState`), enabling real-time inline validation and conditional rendering, but trigger component re-renders on every keystroke. Uncontrolled components store values directly in the DOM and read them via `useRef` upon form submission, offering better performance for massive forms with minimal rendering overhead at the cost of immediate reactive validation.",
+        "expected_keywords": [
+          "Controlled Components",
+          "Uncontrolled Components",
+          "useRef",
+          "useState",
+          "re-render performance"
+        ],
+        "skills": [
+          "React Form Patterns",
+          "Performance vs Usability"
+        ],
+        "tags": [
+          "React",
+          "Forms",
+          "State Management"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "How do `React.lazy` and `Suspense` work together to implement code splitting at the component level?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "React.lazy dynamically imports a component as a Promise, while Suspense catches the pending Promise to render a fallback UI until loaded.",
+        "explanation": null,
+        "model_answer": "`React.lazy()` allows you to render a dynamic `import()` as a standard React component, generating a separate code bundle. `Suspense` wraps the lazy component and catches the pending promise while the chunk loads, displaying a specified `fallback` UI (e.g., loading spinner) until the module is fetched and ready to render.",
+        "expected_keywords": [
+          "React.lazy",
+          "Suspense",
+          "code splitting",
+          "dynamic import",
+          "fallback UI"
+        ],
+        "skills": [
+          "React Code Splitting",
+          "Performance Optimization"
+        ],
+        "tags": [
+          "React",
+          "Lazy Loading",
+          "Suspense"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "What is React's Synthetic Event System and why does React use it instead of native browser events?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "SyntheticEvent is a cross-browser wrapper around native events that normalizes behavior and optimizes performance using event delegation.",
+        "explanation": null,
+        "model_answer": "React's Synthetic Event System is a cross-browser wrapper around browser native events that standardizes event properties across different browsers. React delegates these events to the root DOM node instead of attaching listeners directly to individual elements, which optimizes memory utilization and improves application performance.",
+        "expected_keywords": [
+          "SyntheticEvent",
+          "event delegation",
+          "cross-browser consistency",
+          "root container",
+          "native event"
+        ],
+        "skills": [
+          "React Synthetic Events",
+          "DOM Event Delegation"
+        ],
+        "tags": [
+          "React",
+          "Synthetic Events",
+          "DOM"
+        ],
+        "topic": "React",
+        "difficulty": "medium",
+        "estimated_time": 120
+      }
+    ],
+    "State Management": [
+      {
+        "question": "When executing an asynchronous operation using Redux Toolkit's `createAsyncThunk`, which three action types are automatically dispatched representing the lifecycle of the request?",
+        "question_type": "mcq",
+        "options": [
+          "initiated, resolved, rejected",
+          "pending, fulfilled, rejected",
+          "start, success, error",
+          "loading, complete, failed"
+        ],
+        "correct_answer": "pending, fulfilled, rejected",
+        "explanation": "`createAsyncThunk` generates action creators for `pending`, `fulfilled`, and `rejected` states automatically based on the promise lifecycle.",
+        "model_answer": null,
+        "expected_keywords": [
+          "pending",
+          "fulfilled",
+          "rejected"
+        ],
+        "skills": [
+          "Redux Toolkit",
+          "Async State Management"
+        ],
+        "tags": [
+          "Redux",
+          "Async Actions"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following problems are specifically solved by Server State Management libraries (like TanStack Query / SWR) compared to traditional Client State stores (like Redux)?",
+        "question_type": "msq",
+        "options": [
+          "Automatic background revalidation and caching",
+          "Managing UI form state and local modal visibility",
+          "Deduplicating multiple identical network requests",
+          "Handling client-side routing state transition flags"
+        ],
+        "correct_answer": [
+          "Automatic background revalidation and caching",
+          "Deduplicating multiple identical network requests"
+        ],
+        "explanation": "Server state libraries excel at managing external data, caching, revalidation, and request deduplication. UI form state and router flags belong to client UI state management.",
+        "model_answer": null,
+        "expected_keywords": [
+          "caching",
+          "revalidation",
+          "request deduplication"
+        ],
+        "skills": [
+          "Server State vs Client State",
+          "Data Fetching Libraries"
+        ],
+        "tags": [
+          "TanStack Query",
+          "Caching"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "You are building a social media feed where users can click 'Like' on a post. To provide instant feedback, you implement Optimistic UI updates. Describe the state management process required to handle both successful and failed API responses during an optimistic update.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Optimistically update local state immediately while taking a snapshot of the previous state; commit changes on success, or roll back to the snapshot on error.",
+        "explanation": null,
+        "model_answer": "To implement optimistic state updates, the client immediately updates the local state UI to reflect the liked status before making the network request, while saving a snapshot of the previous state. Simultaneously, an asynchronous API call is dispatched to persist the change on the backend. If the API request succeeds, the state is confirmed or reconciled with server data; if it fails, the application rolls back the local state to the saved snapshot and displays an error notification to the user.",
+        "expected_keywords": [
+          "optimistic update",
+          "rollback snapshot",
+          "reconciliation",
+          "failure fallback",
+          "UI state sync"
+        ],
+        "skills": [
+          "Optimistic UI Updates",
+          "State Synchronization"
+        ],
+        "tags": [
+          "Optimistic State",
+          "Error Handling"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain the concept of state normalization in frontend state management and state two benefits it offers when handling relational data.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "State normalization flattens deeply nested data structures into entity lookup tables by ID, avoiding duplication and simplifying immutable updates.",
+        "explanation": null,
+        "model_answer": "State normalization is the practice of structuring state like a relational database, storing items as key-value lookups by ID rather than deeply nested arrays or objects. First, it prevents data duplication across multiple parts of the app state, ensuring a single source of truth. Second, it simplifies state updates by allowing direct, O(1) dynamic lookups and mutations without requiring deeply nested immutable object spread operations.",
+        "expected_keywords": [
+          "single source of truth",
+          "denormalized data",
+          "flat state structure",
+          "lookup by ID",
+          "immutable updates"
+        ],
+        "skills": [
+          "State Architecture",
+          "Data Normalization"
+        ],
+        "tags": [
+          "Normalization",
+          "Data Structuring"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Why does updating a context value in React's Context API often trigger re-renders in all consuming components, and how do state stores with selector subscriptions (like Redux or Zustand) prevent this?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "React Context triggers re-renders on all subscribers when its object reference changes, whereas selector-based stores trigger updates only when the specific selected state slice changes value.",
+        "explanation": null,
+        "model_answer": "React Context triggers re-renders for all consumer components whenever its value reference changes, regardless of whether a component uses the specific updated property. External store solutions like Zustand or Redux bypass React Context re-render cascading by maintaining state outside the React tree and utilizing selector functions. Components subscribe only to specific slices of state, triggering a re-render exclusively when the strict or shallow equality of that selected slice changes.",
+        "expected_keywords": [
+          "context reference change",
+          "unnecessary re-renders",
+          "slice selection",
+          "shallow equality",
+          "store subscription"
+        ],
+        "skills": [
+          "Performance Optimization",
+          "Context API",
+          "Store Selectors"
+        ],
+        "tags": [
+          "Re-renders",
+          "Selectors"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "In Redux state management, what is the primary benefit of using memoized selectors created via libraries like Reselect (`createSelector`)?",
+        "question_type": "mcq",
+        "options": [
+          "They allow state mutations inside reducers without side effects",
+          "They compute derived state and avoid expensive re-calculations unless input state arguments change",
+          "They automatically convert asynchronous thunks into synchronous actions",
+          "They persist state slices automatically to local browser storage"
+        ],
+        "correct_answer": "They compute derived state and avoid expensive re-calculations unless input state arguments change",
+        "explanation": "Reselect uses memoization to store previously calculated derived state. If the input selectors' return values do not change, Reselect skips re-running the output selector and returns the cached result.",
+        "model_answer": null,
+        "expected_keywords": [
+          "derived state",
+          "memoization",
+          "re-calculation"
+        ],
+        "skills": [
+          "Redux",
+          "Reselect",
+          "Performance"
+        ],
+        "tags": [
+          "Selectors",
+          "Reselect"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "When persisting application state to `localStorage` in a Client-Side Application, which of the following are essential best practices to ensure stability and security?",
+        "question_type": "msq",
+        "options": [
+          "Storing sensitive user authentication tokens and passwords directly in unencrypted local state storage",
+          "Implementing state schema versioning and migration strategies to handle updates gracefully",
+          "Debouncing or throttling writes to localStorage to avoid blocking the main thread",
+          "Serializing only non-sensitive, persistent state slices rather than the entire global store"
+        ],
+        "correct_answer": [
+          "Implementing state schema versioning and migration strategies to handle updates gracefully",
+          "Debouncing or throttling writes to localStorage to avoid blocking the main thread",
+          "Serializing only non-sensitive, persistent state slices rather than the entire global store"
+        ],
+        "explanation": "Storing sensitive data in unencrypted local storage is a security risk (XSS). Best practices include throttling synchronous disk writes, picking only essential non-sensitive slices, and providing version migration when local store structure updates.",
+        "model_answer": null,
+        "expected_keywords": [
+          "state persistence",
+          "schema migration",
+          "throttling",
+          "sensitive data"
+        ],
+        "skills": [
+          "State Persistence",
+          "Storage Management"
+        ],
+        "tags": [
+          "LocalStorage",
+          "Security"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "A complex multi-step checkout form in your application keeps entering invalid state combinations (e.g., `isSubmitting: true` while `isSuccess: true` simultaneously). How can converting this state management logic to a Finite State Machine (e.g., using XState) eliminate impossible state combinations?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Finite State Machines restrict the application to strictly defined, mutually exclusive states and valid transition events, preventing illegal boolean flag combinations.",
+        "explanation": null,
+        "model_answer": "A Finite State Machine eliminates impossible state combinations by explicitly defining a set of mutually exclusive states (e.g., 'idle', 'submitting', 'success', 'error') and allowable transitions between them. Rather than maintaining independent, uncoordinated boolean flags that can accidentally overlap, the application can only exist in exactly one state at any given time. State transitions occur strictly through explicitly defined events, preventing illegal state transitions like submitting while already succeeded.",
+        "expected_keywords": [
+          "mutually exclusive states",
+          "explicit transitions",
+          "illegal state combinations",
+          "deterministic behavior",
+          "event-driven transitions"
+        ],
+        "skills": [
+          "Finite State Machines",
+          "State Architecture"
+        ],
+        "tags": [
+          "XState",
+          "State Machine"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Compare 'Atomic State Management' (e.g., Recoil, Jotai) with 'Proxy-based State Management' (e.g., MobX, Valtio) in terms of how they handle fine-grained reactivity.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Atomic state management organizes state into discrete atom units declared explicitly, while proxy-based state wraps mutable object hierarchies in ES6 Proxies to transparently track changes.",
+        "explanation": null,
+        "model_answer": "Atomic state management structures state into minimal, independent units of state called 'atoms' that components subscribe to directly, forming a dependency graph for fine-grained re-renders. Proxy-based state management uses JavaScript `Proxy` objects to automatically wrap state, transparently tracking property access and mutations during render cycles. While atomic state relies on explicit atom creation and hook declarations, proxy-based state allows direct mutable-style syntax while automatically triggering updates for modified properties.",
+        "expected_keywords": [
+          "atoms",
+          "dependency graph",
+          "JavaScript Proxy",
+          "fine-grained reactivity",
+          "transparent tracking"
+        ],
+        "skills": [
+          "State Management Paradigms",
+          "Reactivity Models"
+        ],
+        "tags": [
+          "Atomic State",
+          "Proxy State"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Why does directly mutating an object in Redux (e.g., `state.user.name = 'Alice'`) without using immutability utilities like Immer cause UI updates to fail in React components?",
+        "question_type": "mcq",
+        "options": [
+          "React relies on reference equality (`===`) checks to detect state changes, and direct mutation retains the old object reference",
+          "Redux throws a compile-time syntax error whenever a property assignment operator is evaluated",
+          "Direct state mutation causes local state variables to be cleared from memory completely",
+          "Mutating state automatically converts JavaScript objects into immutable primitives"
+        ],
+        "correct_answer": "React relies on reference equality (`===`) checks to detect state changes, and direct mutation retains the old object reference",
+        "explanation": "React and state selectors rely on shallow reference equality checks (`oldState === newState`) to detect updates efficiently. Direct mutation updates property values in-place without changing the root object reference, causing change detectors to think nothing changed.",
+        "model_answer": null,
+        "expected_keywords": [
+          "reference equality",
+          "immutability",
+          "shallow check"
+        ],
+        "skills": [
+          "Immutability",
+          "Change Detection"
+        ],
+        "tags": [
+          "Immutability",
+          "React-Redux"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following statements accurately describe the core architectural principles of Flux state management pattern?",
+        "question_type": "msq",
+        "options": [
+          "Unidirectional data flow guarantees predictable state mutations",
+          "Views directly mutate stores when user interactions occur",
+          "Stores emit change events to update views after processing actions",
+          "Actions are dispatched to central dispatchers which update registered stores"
+        ],
+        "correct_answer": [
+          "Unidirectional data flow guarantees predictable state mutations",
+          "Stores emit change events to update views after processing actions",
+          "Actions are dispatched to central dispatchers which update registered stores"
+        ],
+        "explanation": "Flux relies on unidirectional data flow: Views dispatch actions to a Dispatcher, which updates Stores, which then emit change events to update Views. Views never directly mutate stores.",
+        "model_answer": null,
+        "expected_keywords": [
+          "unidirectional flow",
+          "dispatcher",
+          "actions"
+        ],
+        "skills": [
+          "Flux Architecture",
+          "State Design Patterns"
+        ],
+        "tags": [
+          "Flux",
+          "Architecture"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Your team is refactoring a large enterprise application state. Developers are currently placing all component UI flags (e.g., modal open states, active tab indices, hover tooltips) into a global Redux store. Explain why this approach is problematic and outline a clear state scoping policy.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Globalizing ephemeral UI state leads to unnecessary re-renders, verbosity, and maintainability issues; state should be scoped based on longevity and consumption scope (local vs shared vs global).",
+        "explanation": null,
+        "model_answer": "Storing transient UI state globally creates unnecessary boilerplate, pollutes the global state tree, and causes widespread re-renders across components consuming global state. A recommended state scoping policy categorizes state into Local UI state (e.g., modal open flags, tab selection managed via `useState`), Shared UI/Feature state (e.g., active filters, multi-component sync via Context/Zustand), and Global Server/App State (e.g., user auth, normalized API entities managed via Redux/TanStack Query). Keep state localized to the nearest common ancestor component that requires it to ensure scalability and maintain performance.",
+        "expected_keywords": [
+          "transient UI state",
+          "state scoping",
+          "local state vs global state",
+          "unnecessary re-renders",
+          "boiler-plate pollution"
+        ],
+        "skills": [
+          "State Architecture",
+          "Performance Optimization"
+        ],
+        "tags": [
+          "State Scoping",
+          "Refactoring"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "What is the primary role of middleware in state management libraries like Redux, and how does it fit into the action-dispatch lifecycle?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Middleware intercepts dispatched actions before they hit reducers, enabling asynchronous logic, logging, and side effects.",
+        "explanation": null,
+        "model_answer": "Redux middleware provides a third-party extension point between the moment an action is dispatched and the moment it reaches the reducer. Its primary role is to intercept actions to perform side effects, such as asynchronous API logging, routing, error handling, or transforming actions. Middleware can inspect, alter, delay, or completely swallow dispatched actions before passing them to the next middleware or reducer.",
+        "expected_keywords": [
+          "action dispatch",
+          "interceptor",
+          "side effects",
+          "async logic",
+          "reducer"
+        ],
+        "skills": [
+          "Redux Middleware",
+          "Side Effect Management"
+        ],
+        "tags": [
+          "Middleware",
+          "Redux"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Explain the concept of state hydration in Server-Side Rendered (SSR) web applications and how state inconsistency between server and client causes hydration mismatches.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "State hydration attaches client-side event handlers and state stores to static server HTML; mismatches occur when initial state or DOM calculated on the client differs from server pre-rendered output.",
+        "explanation": null,
+        "model_answer": "State hydration is the process where the client-side JavaScript framework takes over static HTML sent by the server, attaching event listeners and instantiating the client state store initialized with server state data. A hydration mismatch occurs when the state evaluated on the client differs from the pre-rendered server state (e.g., using browser-only state like `window.innerWidth` or local storage flags during initial render). This discrepancy causes the virtual DOM generated on the client to disagree with the DOM received from the server, triggering layout shifts or DOM reconstruction errors.",
+        "expected_keywords": [
+          "SSR state preloading",
+          "hydration mismatch",
+          "client-side rehydration",
+          "initial state synchronization",
+          "DOM disparity"
+        ],
+        "skills": [
+          "Server-Side Rendering",
+          "SSR State Hydration"
+        ],
+        "tags": [
+          "Hydration",
+          "SSR"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "In Vue state management (Pinia/Vuex), how do `getters` differ from raw `state` properties?",
+        "question_type": "mcq",
+        "options": [
+          "Getters are asynchronous functions used exclusively for network requests",
+          "Getters are computed properties derived from state that cache results based on dependencies",
+          "Getters are state mutators that directly modify store values synchronously",
+          "Getters are private store variables accessible only inside custom actions"
+        ],
+        "correct_answer": "Getters are computed properties derived from state that cache results based on dependencies",
+        "explanation": "In Pinia/Vuex, getters function as computed properties for stores. They receive state as their first argument and cache their output, re-evaluating only when their reactive dependencies change.",
+        "model_answer": null,
+        "expected_keywords": [
+          "computed properties",
+          "caching",
+          "derived state"
+        ],
+        "skills": [
+          "Vue State Management",
+          "Pinia / Vuex"
+        ],
+        "tags": [
+          "Pinia",
+          "Vuex"
+        ],
+        "topic": "State Management",
+        "difficulty": "medium",
+        "estimated_time": 60
+      }
+    ],
+    "REST APIs": [
+      {
+        "question": "When updating a single field (such as an email address) on a user resource without replacing the entire user object, which HTTP method best adheres to RESTful standards?",
+        "question_type": "mcq",
+        "options": [
+          "POST",
+          "PUT",
+          "PATCH",
+          "OPTIONS"
+        ],
+        "correct_answer": "PATCH",
+        "explanation": "PATCH is designed specifically for partial modifications to a resource, whereas PUT is intended to replace the entire representation of the target resource.",
+        "model_answer": null,
+        "expected_keywords": [
+          "PATCH",
+          "partial modification",
+          "HTTP method"
+        ],
+        "skills": [
+          "REST Principles",
+          "HTTP Semantics"
+        ],
+        "tags": [
+          "REST",
+          "HTTP Methods"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "A frontend client receives an HTTP status code `304 Not Modified` when making a conditional `GET` request. How should the client handle this response?",
+        "question_type": "mcq",
+        "options": [
+          "Display a client-side error indicating invalid request parameters",
+          "Serve the cached representation of the requested resource to the user",
+          "Automatically issue a POST request to re-generate the stale resource",
+          "Clear local browser cache and re-authenticate the user session"
+        ],
+        "correct_answer": "Serve the cached representation of the requested resource to the user",
+        "explanation": "An HTTP 304 response indicates that the resource has not been modified since the version specified in conditional headers (such as If-None-Match). The client can safely serve its locally cached representation without redownloading data.",
+        "model_answer": null,
+        "expected_keywords": [
+          "304 Not Modified",
+          "browser cache",
+          "ETag"
+        ],
+        "skills": [
+          "HTTP Caching",
+          "REST Status Codes"
+        ],
+        "tags": [
+          "Caching",
+          "Status Codes"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "In REST architectural design, which of the following HTTP methods is defined as both safe and idempotent?",
+        "question_type": "mcq",
+        "options": [
+          "POST",
+          "DELETE",
+          "GET",
+          "PATCH"
+        ],
+        "correct_answer": "GET",
+        "explanation": "GET is safe because it does not alter server state, and idempotent because executing identical GET requests produces identical results without side effects. DELETE is idempotent but not safe.",
+        "model_answer": null,
+        "expected_keywords": [
+          "GET",
+          "idempotent",
+          "safe method"
+        ],
+        "skills": [
+          "HTTP Semantics",
+          "REST Architecture"
+        ],
+        "tags": [
+          "HTTP Methods",
+          "REST Architecture"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which request header is sent by a REST frontend client to explicitly inform the server about the expected format of the returned data payload?",
+        "question_type": "mcq",
+        "options": [
+          "Content-Type",
+          "Accept",
+          "X-Requested-With",
+          "Transfer-Encoding"
+        ],
+        "correct_answer": "Accept",
+        "explanation": "The Accept header specifies the media types (e.g., application/json) acceptable for the response. Content-Type indicates the media type of the sent request body.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Accept header",
+          "Content Negotiation",
+          "Media Type"
+        ],
+        "skills": [
+          "HTTP Headers",
+          "Content Negotiation"
+        ],
+        "tags": [
+          "Headers",
+          "Content Negotiation"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following HTTP headers are directly involved in implementing conditional HTTP caching between a frontend application and a REST API?",
+        "question_type": "msq",
+        "options": [
+          "ETag",
+          "If-None-Match",
+          "Authorization",
+          "Last-Modified",
+          "Content-Disposition"
+        ],
+        "correct_answer": [
+          "ETag",
+          "If-None-Match",
+          "Last-Modified"
+        ],
+        "explanation": "ETag and Last-Modified are response headers supplied by the server. If-None-Match (and If-Modified-Since) are request headers sent by the client to conditionally validate cached resources.",
+        "model_answer": null,
+        "expected_keywords": [
+          "ETag",
+          "If-None-Match",
+          "Last-Modified",
+          "Conditional Requests"
+        ],
+        "skills": [
+          "HTTP Caching",
+          "REST Headers"
+        ],
+        "tags": [
+          "Caching",
+          "Headers"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Select all HTTP status codes that represent standard client error responses when consuming a REST API.",
+        "question_type": "msq",
+        "options": [
+          "401 Unauthorized",
+          "409 Conflict",
+          "422 Unprocessable Entity",
+          "502 Bad Gateway",
+          "503 Service Unavailable"
+        ],
+        "correct_answer": [
+          "401 Unauthorized",
+          "409 Conflict",
+          "422 Unprocessable Entity"
+        ],
+        "explanation": "4xx HTTP status codes signify client-side issues (401, 409, 422). 5xx codes (502, 503) indicate server failure.",
+        "model_answer": null,
+        "expected_keywords": [
+          "4xx status codes",
+          "Client Error",
+          "401",
+          "409",
+          "422"
+        ],
+        "skills": [
+          "REST Status Codes",
+          "Error Handling"
+        ],
+        "tags": [
+          "Status Codes",
+          "Error Handling"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which request headers or configurations trigger a CORS preflight (`OPTIONS`) request during cross-origin fetch operations?",
+        "question_type": "msq",
+        "options": [
+          "Accept",
+          "Authorization header",
+          "Content-Type set to application/json",
+          "Accept-Language",
+          "Custom request headers like X-API-Key"
+        ],
+        "correct_answer": [
+          "Authorization header",
+          "Content-Type set to application/json",
+          "Custom request headers like X-API-Key"
+        ],
+        "explanation": "Simple requests permit basic headers (Accept, Accept-Language, Content-Type of application/x-www-form-urlencoded, multipart/form-data, or text/plain). Including Authorization, application/json Content-Type, or custom headers forces a preflight request.",
+        "model_answer": null,
+        "expected_keywords": [
+          "CORS",
+          "Preflight",
+          "OPTIONS request",
+          "Custom Headers"
+        ],
+        "skills": [
+          "CORS",
+          "HTTP Request Headers"
+        ],
+        "tags": [
+          "CORS",
+          "Security"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Explain the architectural constraint of 'Statelessness' in REST APIs and how token-based authentication (such as JWT) enables stateless communication from the client perspective.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Statelessness requires that each HTTP request contains all necessary contextual and authentication information. Frontend clients pass JWT tokens in request headers on every call so servers don't store session state.",
+        "explanation": null,
+        "model_answer": "Statelessness in REST dictates that the server stores no client session state between requests; every incoming request must contain complete information to be fulfilled. On the frontend, token-based authentication (like JWT) facilitates this by storing credentials on the client and sending them in the `Authorization` header (`Bearer <token>`) with every request. This decoupled model allows any server instance to validate and process requests independently without retrieving backend session data.",
+        "expected_keywords": [
+          "Statelessness",
+          "Authorization header",
+          "JWT",
+          "Bearer token",
+          "Session state"
+        ],
+        "skills": [
+          "REST Architecture",
+          "Authentication Integration"
+        ],
+        "tags": [
+          "REST Architecture",
+          "Authentication"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Contrast URI Path Versioning with Header-Based Versioning for REST APIs, highlighting one frontend architectural benefit of Header-Based Versioning.",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Path versioning includes versions in the endpoint path (/v1/users), while header versioning specifies versioning in HTTP headers. Header versioning preserves clean, canonical URIs across version updates.",
+        "explanation": null,
+        "model_answer": "URI Path Versioning embeds the version identifier directly within the request URL (e.g., `/api/v1/users`), creating distinct endpoints for each version. Header-Based Versioning requests resources using a stable URL path while specifying desired versions through custom headers or the `Accept` header (e.g., `Accept: application/vnd.company.v2+json`). A major frontend advantage of header versioning is that canonical resource URLs remain persistent and clean across version updates, simplifying URL routing and caching logic.",
+        "expected_keywords": [
+          "Path Versioning",
+          "Header Versioning",
+          "Canonical URI",
+          "Accept Header"
+        ],
+        "skills": [
+          "API Versioning",
+          "REST Standards"
+        ],
+        "tags": [
+          "Versioning",
+          "REST"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "How should a frontend client properly handle an HTTP `429 Too Many Requests` status code returned by a rate-limited REST API?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Inspect the `Retry-After` header, temporarily pause automated or subsequent API calls, and implement exponential backoff retry mechanisms.",
+        "explanation": null,
+        "model_answer": "Upon receiving an HTTP `429 Too Many Requests` error, the frontend client should parse the `Retry-After` HTTP response header to determine the exact delay required before making subsequent requests. The application should pause active queues for that resource, block automated polling actions, and inform the user if action execution is delayed. When retrying failed requests, the client should implement exponential backoff with jitter to prevent retries from continually overwhelming the rate-limited server.",
+        "expected_keywords": [
+          "429 Too Many Requests",
+          "Retry-After",
+          "Exponential backoff",
+          "Rate limiting"
+        ],
+        "skills": [
+          "Error Handling",
+          "API Resilience"
+        ],
+        "tags": [
+          "Rate Limiting",
+          "Error Handling"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "A web app allows users to update profile details. Another session updates the same profile simultaneously. The REST API relies on ETag headers for optimistic concurrency control. Describe how the client application manages a `412 Precondition Failed` error when submitting edits.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "The client sends `If-Match` with the initial `ETag`. If outdated, the server returns `412 Precondition Failed`. The frontend prompts the user to refresh and resolve conflicting updates.",
+        "explanation": null,
+        "model_answer": "When initially fetching profile data, the frontend stores the response `ETag` string. During submission (`PUT` or `PATCH`), the client includes this value in the `If-Match` request header. If another session updated the profile, the resource ETag changed on the server, causing the server to return `412 Precondition Failed`. The client catches this status code, halts execution without overwriting data, prompts the user about the conflict, re-fetches the latest representation, and provides a UI flow to resolve conflicting edits.",
+        "expected_keywords": [
+          "ETag",
+          "If-Match",
+          "412 Precondition Failed",
+          "Optimistic Concurrency",
+          "Conflict resolution"
+        ],
+        "skills": [
+          "REST Concurrency",
+          "Frontend Resilience",
+          "HTTP Headers"
+        ],
+        "tags": [
+          "Concurrency",
+          "HTTP Headers",
+          "Error Handling"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Your frontend web app requests paginated records from a high-frequency REST API endpoint using offset pagination (`?page=50&limit=20`). Users observe skipped or duplicated data items when navigating pages. How does transitioning to cursor-based pagination fix this issue?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Cursor-based pagination uses a unique pointer bound to a specific record, preventing record shifts caused by concurrent additions or deletions during pagination.",
+        "explanation": null,
+        "model_answer": "Offset pagination calculates offset based on current dataset size, making it vulnerable to dataset changes (inserts/deletions) while a user paginates, which causes items to shift between pages and result in duplicate or missing records. Cursor-based pagination uses a unique, sequential record pointer (e.g., encoded timestamp/ID) passed via query params (`?cursor=xyz&limit=20`). The REST server returns items strictly preceding or following that unique cursor, rendering page iteration stable regardless of underlying real-time dataset mutations.",
+        "expected_keywords": [
+          "Cursor-based pagination",
+          "Offset pagination",
+          "Pointer/Cursor",
+          "Data consistency",
+          "Real-time mutations"
+        ],
+        "skills": [
+          "REST Pagination",
+          "API Optimization"
+        ],
+        "tags": [
+          "Pagination",
+          "API Design"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "A frontend app on `https://app.example.com` calls a REST API at `https://api.example.com` with `credentials: 'include'`. The browser blocks the response due to CORS issues despite `Access-Control-Allow-Origin: https://app.example.com` being returned by the server. Identify the missing response header and state its constraint regarding wildcards.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "The server must send `Access-Control-Allow-Credentials: true`. When credentialed requests are enabled, wildcards (*) are forbidden in `Access-Control-Allow-Origin`.",
+        "explanation": null,
+        "model_answer": "When sending fetch requests with credentials (e.g., cookies or Authorization headers with `credentials: 'include'`), the server must explicitly respond with `Access-Control-Allow-Credentials: true`. Additionally, under CORS specifications, when credentials are included, the server cannot set `Access-Control-Allow-Origin` to wildcard `*`. It must explicitly match the calling origin (`https://app.example.com`) for the browser to grant response access to the client.",
+        "expected_keywords": [
+          "Access-Control-Allow-Credentials",
+          "credentials: include",
+          "Access-Control-Allow-Origin",
+          "Wildcard restriction",
+          "CORS policy"
+        ],
+        "skills": [
+          "CORS Configuration",
+          "Frontend Security"
+        ],
+        "tags": [
+          "CORS",
+          "Security"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Compare the response payload semantics and frontend consumption differences between HTTP status code `200 OK` and `204 No Content` for successful `DELETE` or `PUT` operations.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "200 OK includes a JSON or message body, whereas 204 No Content strictly contains no body. Parsing JSON on a 204 response stream throws a client error.",
+        "explanation": null,
+        "model_answer": "`200 OK` indicates successful processing where the server returns a response body representation (e.g., updated resource object or confirmation JSON). `204 No Content` indicates successful execution where the server intentionally returns an empty body. On the frontend, attempting to execute `response.json()` on a `204 No Content` HTTP response will throw a syntax exception because the payload stream is empty; clients must inspect response status codes before attempting body parsing.",
+        "expected_keywords": [
+          "200 OK",
+          "204 No Content",
+          "Response body",
+          "JSON parsing",
+          "HTTP status code"
+        ],
+        "skills": [
+          "REST Response Handling",
+          "HTTP Semantics"
+        ],
+        "tags": [
+          "Status Codes",
+          "HTTP Semantics"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "What is the primary objective of the RFC 7807 (Problem Details for HTTP APIs) standard, and how does adopting it improve frontend error parsing in REST applications?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "RFC 7807 standardizes error payload structure (`application/problem+json`), offering standardized fields (type, title, status, detail) for uniform client-side error handling.",
+        "explanation": null,
+        "model_answer": "RFC 7807 provides a standardized specification (`application/problem+json`) for conveying machine-readable error details from REST APIs using standard object keys: `type`, `title`, `status`, `detail`, and `instance`. Adopting this standard eliminates varied, custom error structures across different endpoints. On the frontend, this allows developers to implement centralized error interceptors that reliably extract detailed error messages, form validation details, and trouble codes without endpoint-specific conditional handling.",
+        "expected_keywords": [
+          "RFC 7807",
+          "application/problem+json",
+          "detail",
+          "title",
+          "standardized error handling"
+        ],
+        "skills": [
+          "REST Error Handling",
+          "API Standards"
+        ],
+        "tags": [
+          "Error Handling",
+          "REST Standards"
+        ],
+        "topic": "REST APIs",
+        "difficulty": "medium",
+        "estimated_time": 120
+      }
+    ],
+    "Routing": [
+      {
+        "question": "When using HTML5 History API mode (`pushState`) in Single Page Applications (SPAs), why does manually refreshing a browser page on a deep route like `/dashboard/settings` result in a 404 error on default web server configurations?",
+        "question_type": "mcq",
+        "options": [
+          "The browser fails to preserve local storage state during page reload.",
+          "The web server attempts to locate a physical file or directory matching `/dashboard/settings` instead of serving `index.html`.",
+          "HTML5 History API requires HTTPS, causing standard HTTP servers to block the route request.",
+          "The JavaScript bundle is uninstalled from browser memory during page reload."
+        ],
+        "correct_answer": "The web server attempts to locate a physical file or directory matching `/dashboard/settings` instead of serving `index.html`.",
+        "explanation": "In History API routing, the server sees the request path `/dashboard/settings` directly on page refresh. Without server rewrites configured to redirect all requests to `index.html`, the web server looks for an actual file at that path and returns a 404.",
+        "model_answer": null,
+        "expected_keywords": [
+          "fallback routing",
+          "index.html",
+          "server rewrite",
+          "HTML5 History API"
+        ],
+        "skills": [
+          "Client-Side Routing",
+          "Web Server Configuration"
+        ],
+        "tags": [
+          "History API",
+          "Routing",
+          "SPA"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "A user attempts to navigate directly to an authenticated route `/analytics`. Your frontend router needs to asynchronously verify the user's session token. If authentication fails, the user must be redirected to `/login` while preserving the intended target URL so they can be redirected back after logging in. Describe how you would implement this navigation guard flow.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Intercept navigation using an async route guard, validate token, redirect to `/login` with target path stored in query params, and redirect back upon login.",
+        "explanation": null,
+        "model_answer": "I would implement a client-side navigation guard (such as React Router layout wrappers or Vue Router's `beforeEach`). The guard pauses navigation to execute an asynchronous authentication token check. If valid, navigation to `/analytics` continues. If invalid or expired, navigation is aborted and redirected to `/login` with the original URL passed as a query string parameter (e.g., `/login?redirect=/analytics`). After successful login, the authentication handler reads the query parameter and programmatically navigates the user back to `/analytics`.",
+        "expected_keywords": [
+          "navigation guard",
+          "protected route",
+          "query parameters",
+          "async authentication",
+          "redirect URL"
+        ],
+        "skills": [
+          "Route Guards",
+          "Authentication Flow",
+          "Client Navigation"
+        ],
+        "tags": [
+          "Guards",
+          "Auth Routing",
+          "SPAs"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain how client-side routing integrates with dynamic imports (`import()`) and bundlers like Vite or Webpack to achieve route-based code splitting. What happens under the hood when a user navigates to a lazily loaded route?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Dynamic imports split route components into separate JavaScript chunks loaded asynchronously via HTTP on demand when navigation occurs.",
+        "explanation": null,
+        "model_answer": "Route-based code splitting leverages ES dynamic imports (`import('./Component.js')`) inside route configuration definitions. Bundlers like Webpack or Vite identify dynamic imports during build time and separate those component modules into distinct JavaScript bundle chunks. When a user navigates to a lazily loaded route, the client-side router triggers the execution of the dynamic import function, initiating a HTTP request to fetch the missing bundle chunk. Once the script resolves, the router dynamically updates the view while caching the loaded chunk for future transitions.",
+        "expected_keywords": [
+          "code splitting",
+          "dynamic import",
+          "bundle chunks",
+          "lazy loading",
+          "async loading"
+        ],
+        "skills": [
+          "Performance Optimization",
+          "Frontend Architecture",
+          "Code Splitting"
+        ],
+        "tags": [
+          "Lazy Loading",
+          "Bundling",
+          "Performance"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Why does manual scroll restoration often become necessary in Single Page Applications (SPAs) during client-side route transitions, and how do modern client-side routers handle it?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "SPAs swap DOM elements dynamically without triggering actual page reloads, causing browser native scroll behavior to misalign, requiring routers to track and restore scroll position via history state.",
+        "explanation": null,
+        "model_answer": "In SPAs, client-side route transitions replace DOM content dynamically without browser page reloads, which can prevent default browser scroll restoration from functioning correctly or cause scroll position jumping. Client-side routers handle this by intercepting route transitions and recording viewport scroll positions mapped to unique history state keys. Upon back or forward navigation, the router uses saved state coordinates or dynamic page hooks to execute `window.scrollTo()` after rendering the target DOM structure.",
+        "expected_keywords": [
+          "scroll restoration",
+          "viewport scroll",
+          "DOM rendering",
+          "history state",
+          "navigation"
+        ],
+        "skills": [
+          "User Experience",
+          "DOM Manipulation",
+          "Browser History"
+        ],
+        "tags": [
+          "Scroll Restoration",
+          "UX",
+          "Browser Behavior"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "What is the primary technical difference between calling `window.location.assign('/profile')` and calling `window.history.pushState({}, '', '/profile')` in modern web applications?",
+        "question_type": "mcq",
+        "options": [
+          "`window.location.assign()` initiates a full browser HTTP request and page refresh, whereas `window.history.pushState()` updates the URL without triggering a server request.",
+          "`window.history.pushState()` forces a full page refresh while `window.location.assign()` operates strictly in memory.",
+          "`window.location.assign()` is restricted to hash-based navigation paths only.",
+          "`window.history.pushState()` bypasses browser security policies and eliminates standard cross-origin restrictions."
+        ],
+        "correct_answer": "`window.location.assign()` initiates a full browser HTTP request and page refresh, whereas `window.history.pushState()` updates the URL without triggering a server request.",
+        "explanation": "`location.assign()` instructs the browser to load a new URL document from the network, causing a full page refresh. `history.pushState()` adds an entry to the browser's session history stack and updates the address bar without triggering a network fetch or page reload.",
+        "model_answer": null,
+        "expected_keywords": [
+          "pushState",
+          "location.assign",
+          "page refresh",
+          "browser history"
+        ],
+        "skills": [
+          "Browser APIs",
+          "DOM History API"
+        ],
+        "tags": [
+          "History API",
+          "DOM",
+          "Browser"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "You are building a complex form route in an SPA. If a user modifies form input values and attempts to navigate away via in-app links or browser back/forward buttons, the app must show a prompt asking for confirmation before discarding changes. How do you handle both internal client navigation and browser history navigation interception?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use router leave guards/blockers for in-app client navigation and attach a `beforeunload` window event listener for browser history/reload actions.",
+        "explanation": null,
+        "model_answer": "To intercept internal client-side navigation, I would use the router's lifecycle guard or navigation blocking API (e.g., `useBlocker` or `onBeforeRouteLeave`). If form state is dirty, the guard pauses navigation and renders a custom UI modal asking for confirmation. To capture native browser actions like refreshing, typing a new URL, or using browser navigation actions outside client router context, I would attach a `beforeunload` event listener on `window` that prompts the native browser alert dialog.",
+        "expected_keywords": [
+          "beforeunload",
+          "navigation guard",
+          "dirty form state",
+          "leave hooks",
+          "interception"
+        ],
+        "skills": [
+          "Navigation Interception",
+          "Event Handling",
+          "State Management"
+        ],
+        "tags": [
+          "Navigation Blocking",
+          "Forms",
+          "UX"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "How can dynamic client-side route transitions induce memory leaks involving global event listeners or subscriptions, and what is the standard protocol to prevent them?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Unmounted route components retaining active global event listeners, intervals, or streams remain in memory; explicit cleanup during component unmount lifecycle prevents this.",
+        "explanation": null,
+        "model_answer": "Memory leaks occur during route transitions when unmounted view components maintain active references in global scope. Examples include global window listeners (`resize`, `scroll`), unresolved intervals (`setInterval`), or uncancelled RxJS/WebSocket subscriptions. Although the router removes the component's elements from the DOM, JavaScript garbage collectors cannot reclaim the component instance because global listeners hold references to it. Developers prevent leaks by executing cleanup handlers (e.g., `removeEventListener`, `clearInterval`, or unsubscribing) within the component unmount lifecycle hook.",
+        "expected_keywords": [
+          "memory leaks",
+          "garbage collection",
+          "unmount lifecycle",
+          "removeEventListener",
+          "subscriptions"
+        ],
+        "skills": [
+          "Memory Management",
+          "Lifecycle Hooks",
+          "Frontend Performance"
+        ],
+        "tags": [
+          "Memory Leaks",
+          "Lifecycle",
+          "Performance"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "How does hash-based routing (`/#/dashboard`) allow client-side single-page applications to navigate between views without requiring server fallback rewrite rules?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "The URL fragment after the hash `#` is never sent in HTTP request headers to the server, allowing the server to always return `index.html` while client JS handles the route path.",
+        "explanation": null,
+        "model_answer": "Hash-based routing uses the fragment identifier portion of the URL starting with `#`. According to HTTP specifications, browser client requests exclude hash fragments when issuing HTTP requests to web servers, causing the server to consistently serve `index.html` regardless of path. The client-side application listens to the `hashchange` event on the `window` object to parse fragment updates and mount corresponding UI views dynamic without server involvement.",
+        "expected_keywords": [
+          "hash symbol",
+          "fragment identifier",
+          "hashchange event",
+          "HTTP request",
+          "index.html"
+        ],
+        "skills": [
+          "Hash Routing",
+          "HTTP Fundamentals",
+          "Browser APIs"
+        ],
+        "tags": [
+          "Hash Mode",
+          "Client Routing",
+          "HTTP"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Your team deployed a single-page application (SPA) using HTML5 History API for client-side routing. Users report that directly navigating to '/dashboard/settings' or refreshing the page at that URL results in a 404 error from the server, even though navigating to it via in-app links works fine. Explain why this happens and how to resolve it at both the server configuration and routing layer level.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "The server attempts to locate a physical file at '/dashboard/settings', which doesn't exist in an SPA. Fix it by configuring the server to rewrite all non-file requests to 'index.html' so the client-side router can parse the path.",
+        "explanation": null,
+        "model_answer": "This issue occurs because a direct page refresh sends an HTTP GET request directly to the web server looking for a static file at path '/dashboard/settings', which does not exist in a single-page application. To fix this, the web server (e.g., Nginx, Apache, or CDN config) must be configured with a rewrite rule that redirects all non-asset GET requests back to 'index.html' with a 200 status. Once 'index.html' and its JavaScript bundles load in the browser, the client-side router inspects window.location.pathname and correctly initializes and renders the '/dashboard/settings' view.",
+        "expected_keywords": [
+          "index.html fallback",
+          "History API",
+          "server rewrite",
+          "client-side router",
+          "404 error"
+        ],
+        "skills": [
+          "Client-Side Routing",
+          "Server Configuration",
+          "SPA Deployment"
+        ],
+        "tags": [
+          "History API",
+          "SPA Routing",
+          "Fallback Routes"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "A Single Page Application (SPA) utilizes the HTML5 History API for client-side routing. While internal client-side navigation works seamlessly, refreshing the browser on a deep nested route such as '/dashboard/settings' results in a 404 Not Found error from the server. Explain why this occurs and describe the standard server-side solution to fix this issue.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Direct browser requests send HTTP calls to the server for non-existent file paths. The solution is configuring server rewrite/fallback rules to route all incoming HTTP requests to index.html.",
+        "explanation": null,
+        "model_answer": "This issue occurs because refreshing the browser triggers a direct HTTP GET request to the web server for the resource path '/dashboard/settings', which does not exist as a physical file on the server. In an SPA using the History API, client-side routing is executed purely in JavaScript after the root bundle loads. To resolve this, the server (e.g., NGINX, Apache, or Caddy) must be configured with a rewrite or fallback rule that serves 'index.html' with a 200 HTTP status code for all non-static asset routes, enabling the client-side router to initialize and parse the URL path.",
+        "expected_keywords": [
+          "History API",
+          "index.html",
+          "fallback rule",
+          "server rewrite",
+          "404 error"
+        ],
+        "skills": [
+          "Client-side Routing",
+          "SPA Infrastructure",
+          "Web Server Configuration"
+        ],
+        "tags": [
+          "History API",
+          "SPA Routing",
+          "Server Rewrites"
+        ],
+        "topic": "Routing",
+        "difficulty": "medium",
+        "estimated_time": 180
+      }
+    ],
+    "Performance": [
+      {
+        "question": "Which strategy or CSS property is recommended to prevent Cumulative Layout Shift (CLS) when loading responsive images?",
+        "question_type": "mcq",
+        "options": [
+          "Setting explicit width and height attributes or using the CSS aspect-ratio property",
+          "Using async and defer attributes on script tags",
+          "Applying transform: translateZ(0) to force GPU rendering",
+          "Compressing images with gzip or brotli encoding"
+        ],
+        "correct_answer": "Setting explicit width and height attributes or using the CSS aspect-ratio property",
+        "explanation": "Explicit width and height attributes or the CSS aspect-ratio property allow the browser to compute the element's aspect ratio beforehand and reserve layout space prior to downloading the image file, preventing unexpected layout shifts (CLS).",
+        "model_answer": null,
+        "expected_keywords": [
+          "aspect-ratio",
+          "layout shift",
+          "reserve space",
+          "CLS"
+        ],
+        "skills": [
+          "Core Web Vitals",
+          "Layout Optimization"
+        ],
+        "tags": [
+          "CLS",
+          "Performance",
+          "Images"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following HTML resource hints allow developers to proactively optimize network connection setup and asset prefetching? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "<link rel=\"preconnect\" href=\"...\">",
+          "<link rel=\"dns-prefetch\" href=\"...\">",
+          "<link rel=\"preload\" href=\"...\">",
+          "<link rel=\"defer-fetch\" href=\"...\">",
+          "<link rel=\"prerender\" href=\"...\">"
+        ],
+        "correct_answer": [
+          "<link rel=\"preconnect\" href=\"...\">",
+          "<link rel=\"dns-prefetch\" href=\"...\">",
+          "<link rel=\"preload\" href=\"...\">",
+          "<link rel=\"prerender\" href=\"...\">"
+        ],
+        "explanation": "preconnect, dns-prefetch, preload, and prerender are standard browser resource hints. 'defer-fetch' is not a valid resource hint spec.",
+        "model_answer": null,
+        "expected_keywords": [
+          "resource hints",
+          "preconnect",
+          "preload",
+          "dns-prefetch"
+        ],
+        "skills": [
+          "Resource Hinting",
+          "Network Optimization"
+        ],
+        "tags": [
+          "Resource Hints",
+          "Performance",
+          "Network"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "During initial load, a web application executes a heavy client-side JSON parsing routine that locks the UI for 400ms, severely degrading the Interaction to Next Paint (INP) metric. How would you re-architect this execution flow to restore responsiveness?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Offload processing to Web Workers or chunk tasks using yield mechanisms to prevent blocking the main thread.",
+        "explanation": null,
+        "model_answer": "To fix this issue, I would move the JSON parsing and data transformation workload to a Web Worker, which executes on a background thread without blocking the browser's main event loop. If Web Workers are impractical, I would break the long task into smaller chunks using `scheduler.yield()` or `setTimeout()` yielding. This returns control back to the main thread periodically, allowing user input events to be processed immediately and improving INP.",
+        "expected_keywords": [
+          "Web Worker",
+          "main thread",
+          "Long Tasks",
+          "scheduler.yield",
+          "INP"
+        ],
+        "skills": [
+          "Main Thread Optimization",
+          "Web Workers"
+        ],
+        "tags": [
+          "INP",
+          "Web Workers",
+          "Long Tasks"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain how list virtualization (windowing) improves DOM performance when rendering large lists of data, and describe its core mechanism.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Virtualization renders only visible DOM elements in the viewport, unmounting or recycling off-screen nodes to maintain low memory usage.",
+        "explanation": null,
+        "model_answer": "List virtualization calculates which list items fall inside the visible viewport based on scroll position and container dimensions. It only renders those visible elements plus a small buffer, unmounting or repositioning DOM nodes as they scroll out of view. By keeping the total count of active DOM elements low regardless of total item count, it minimizes DOM tree size, reduces memory footprint, and prevents costly reflow/repaint operations.",
+        "expected_keywords": [
+          "DOM nodes",
+          "viewport",
+          "scroll position",
+          "repositioning",
+          "reflow"
+        ],
+        "skills": [
+          "DOM Optimization",
+          "Virtualization"
+        ],
+        "tags": [
+          "Virtualization",
+          "DOM Performance",
+          "Rendering"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "How do dynamic imports (`import()`) help optimize initial bundle size in modern JavaScript applications?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Dynamic imports create split points that enable lazy loading of JS chunks only when needed.",
+        "explanation": null,
+        "model_answer": "Dynamic imports create explicit code-splitting boundaries within modern module bundlers like Webpack or Vite. Instead of bundling all code into a single monolith, modules declared via `import()` are extracted into separate dynamic bundle chunks. These chunks are fetched asynchronously over the network only when requested or rendered, reducing the initial bundle payload and decreasing script parsing and execution times.",
+        "expected_keywords": [
+          "code splitting",
+          "dynamic import",
+          "bundle size",
+          "lazy loading",
+          "chunk"
+        ],
+        "skills": [
+          "Code Splitting",
+          "Bundle Optimization"
+        ],
+        "tags": [
+          "Code Splitting",
+          "Bundling",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "Which image format typically provides higher compression efficiency than WebP and JPEG while supporting HDR, transparency, and high color depth?",
+        "question_type": "mcq",
+        "options": [
+          "AVIF",
+          "BMP",
+          "GIF",
+          "TIFF"
+        ],
+        "correct_answer": "AVIF",
+        "explanation": "AVIF (AV1 Image File Format) is a modern image format based on the AV1 video codec that provides superior compression compared to WebP, JPEG, PNG, and GIF, supporting 10/12-bit color, HDR, and transparency.",
+        "model_answer": null,
+        "expected_keywords": [
+          "AVIF",
+          "compression",
+          "image optimization",
+          "WebP"
+        ],
+        "skills": [
+          "Asset Optimization",
+          "Media Performance"
+        ],
+        "tags": [
+          "AVIF",
+          "Image Optimization",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "Which of the following strategies effectively reduce font-rendering performance bottlenecks such as Flash of Unstyled Text (FOUT) or Flash of Invisible Text (FOIT)? (Select all that apply)",
+        "question_type": "msq",
+        "options": [
+          "Using CSS `font-display: swap`",
+          "Preloading key font files using `<link rel=\"preload\" as=\"font\">`",
+          "Using modern compressed font formats like `WOFF2`",
+          "Applying `font-display: block` to all fallback fonts"
+        ],
+        "correct_answer": [
+          "Using CSS `font-display: swap`",
+          "Preloading key font files using `<link rel=\"preload\" as=\"font\">`",
+          "Using modern compressed font formats like `WOFF2`"
+        ],
+        "explanation": "`font-display: swap` displays fallback text immediately until the web font loads, reducing FOIT. Preloading fonts ensures they fetch early in the loading cascade. WOFF2 provides maximum compression. `font-display: block` prolongs FOIT.",
+        "model_answer": null,
+        "expected_keywords": [
+          "font-display",
+          "WOFF2",
+          "preload",
+          "FOUT",
+          "FOIT"
+        ],
+        "skills": [
+          "Font Optimization",
+          "Rendering Performance"
+        ],
+        "tags": [
+          "Fonts",
+          "FOUT",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 60
+      },
+      {
+        "question": "A single-page application tab continuously increases in memory usage as the user navigates between views, eventually causing browser lag. How would you systematically diagnose and fix this client-side memory leak?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use browser DevTools Heap Snapshots to identify detached DOM nodes and uncleaned event listeners/timers, then remove references in component teardowns.",
+        "explanation": null,
+        "model_answer": "I would diagnose the issue by taking memory Heap Snapshots before and after routing in Chrome DevTools to inspect retainers and search for detached DOM tree nodes. Typical causes include unremoved global event listeners, active `setInterval` timers, or uncleared references in state management stores. I would fix the leak by ensuring all subscriptions, timers, and listeners are properly deregistered during component unmount cycles.",
+        "expected_keywords": [
+          "Heap Snapshot",
+          "Chrome DevTools",
+          "detached DOM nodes",
+          "event listeners",
+          "unmount"
+        ],
+        "skills": [
+          "Memory Management",
+          "Browser DevTools"
+        ],
+        "tags": [
+          "Memory Leak",
+          "DevTools",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 180
+      },
+      {
+        "question": "Describe the sequence of stages in the Critical Rendering Path (CRP) and explain how render-blocking CSS impacts the initial display of a web page.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "The CRP sequence is DOM -> CSSOM -> Render Tree -> Layout -> Paint. External CSS blocks CSSOM construction, delaying Render Tree creation and painting.",
+        "explanation": null,
+        "model_answer": "The Critical Rendering Path consists of constructing the DOM tree from HTML, building the CSSOM tree from CSS, combining them into a Render Tree, computing geometry in the Layout phase, and painting pixels to screen. CSS is considered a render-blocking resource because the browser cannot construct the Render Tree without completing the CSSOM. Consequently, unoptimized or external blocking stylesheets hold up First Contentful Paint (FCP) until they are fully fetched and parsed.",
+        "expected_keywords": [
+          "DOM",
+          "CSSOM",
+          "Render Tree",
+          "Layout",
+          "Paint",
+          "render-blocking"
+        ],
+        "skills": [
+          "Critical Rendering Path",
+          "Browser Rendering Engine"
+        ],
+        "tags": [
+          "CRP",
+          "CSSOM",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 120
+      },
+      {
+        "question": "What performance advantage does the `immutable` directive in the `Cache-Control` header provide when serving versioned dynamic assets?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "It prevents the browser from sending conditional HTTP validation requests (e.g., 304 Not Modified) on page reload for cached assets.",
+        "explanation": null,
+        "model_answer": "The `immutable` directive informs the client browser that the content of the cached asset will never change during its max-age lifetime. This eliminates conditional validation HTTP requests (`If-None-Match` or `If-Modified-Since`) when users manually refresh or reload the page. Consequently, it saves network round-trips and reduces server latency for fingerprint/version-hashed frontend static files.",
+        "expected_keywords": [
+          "immutable",
+          "Cache-Control",
+          "conditional request",
+          "304",
+          "revalidation"
+        ],
+        "skills": [
+          "Browser Caching",
+          "HTTP Protocols"
+        ],
+        "tags": [
+          "Caching",
+          "HTTP",
+          "Performance"
+        ],
+        "topic": "Performance",
+        "difficulty": "medium",
+        "estimated_time": 120
+      }
+    ]
+  },
+  "hard": {
+    "System Design": [
+      {
+        "question": "In Webpack Module Federation, two micro-frontends share a critical global library (e.g., React) configured with 'singleton: true, strictVersion: true'. Micro-frontend A loads v18.2.0, while Micro-frontend B requires v17.0.2. What will be the runtime behavior when Micro-frontend B is lazy-loaded after Micro-frontend A has initialized?",
+        "question_type": "mcq",
+        "options": [
+          "Module Federation will force Micro-frontend B to run on v18.2.0 without error.",
+          "Module Federation will throw a runtime error in the console and block Micro-frontend B from loading.",
+          "Module Federation will silently download both React versions and isolate their component trees in micro-tasks.",
+          "Module Federation will fall back to dynamic script injection, overwriting Micro-frontend A's React instance in global scope."
+        ],
+        "correct_answer": "Module Federation will throw a runtime error in the console and block Micro-frontend B from loading.",
+        "explanation": "When strictVersion: true and singleton: true are both specified, Webpack Module Federation enforces strict semantic version compatibility. If an active container already loaded an incompatible version, Module Federation throws an explicit runtime exception rather than loading a fallback instance.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Module Federation",
+          "singleton",
+          "strictVersion",
+          "runtime error"
+        ],
+        "skills": [
+          "Micro-Frontend Architecture",
+          "Module Federation",
+          "Dependency Management"
+        ],
+        "tags": [
+          "system-design",
+          "micro-frontends",
+          "webpack"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 60
+      },
+      {
+        "question": "You are the Principal Frontend Architect tasked with designing a web platform that hosts 50+ micro-applications built by independent teams. The platform requires dynamic tenant-level custom branding (colors, typography, spacing) loaded at runtime without causing Cumulative Layout Shift (CLS) or bundle bloat. Outline your architecture for dynamic multi-tenant CSS theme delivery and style isolation.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Use CSS Custom Properties defined at root scoped by tenant metadata injected via server-rendered critical head tags, combined with CSS Modules or Shadow DOM for style encapsulation and zero-runtime CSS variables for dynamic sub-app styling.",
+        "explanation": null,
+        "model_answer": "To eliminate CLS and maintain performance, tenant design tokens are evaluated at the Edge/SSR layer and injected as CSS Custom Properties within a critical `<style>` tag in the initial HTML response. Style isolation across micro-apps is enforced using Shadow DOM encapsulation or scoped CSS Modules with build-time prefixing. Themes dynamically update by altering CSS variables at the root level, avoiding expensive runtime JavaScript CSS-in-JS style recalculations across micro-frontend boundaries.",
+        "expected_keywords": [
+          "CSS Custom Properties",
+          "Style Isolation",
+          "Shadow DOM",
+          "Cumulative Layout Shift",
+          "Critical CSS"
+        ],
+        "skills": [
+          "Micro-Frontend Architecture",
+          "Web Performance Optimization",
+          "Design Systems"
+        ],
+        "tags": [
+          "system-design",
+          "micro-frontends",
+          "css-architecture"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 180
+      },
+      {
+        "question": "Describe the architecture of a client-side offline-first synchronization engine designed to handle transactional data mutations in an enterprise PWA. Explain how data flows from user action to backend persistence while handling network drops, optimistic UI updates, and conflict resolution.",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "An architecture consisting of Optimistic UI state updates, an IndexedDB mutation queue, a Service Worker background sync listener, exponential backoff retry mechanisms, and a vector clock or CRDT-based conflict resolution handler.",
+        "explanation": null,
+        "model_answer": "User actions immediately mutate local state via Optimistic Updates and publish the transaction into an IndexedDB mutation queue tagged with vector clocks. A dedicated Service Worker listens to network connectivity changes and utilizes the Background Sync API to push queued requests in FIFO order with exponential backoff. Upon server response, vector clocks resolve concurrent mutation conflicts; successfully acknowledged mutations are purged from IndexedDB and client state stores are reconciled.",
+        "expected_keywords": [
+          "IndexedDB",
+          "Service Worker",
+          "Optimistic Updates",
+          "Background Sync",
+          "Vector Clocks"
+        ],
+        "skills": [
+          "Offline-First Architecture",
+          "State Management Design",
+          "Client Data Persistence"
+        ],
+        "tags": [
+          "system-design",
+          "pwa",
+          "sync-engine"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 120
+      },
+      {
+        "question": "How would you design a high-throughput, low-overhead client-side telemetry engine to record user performance metrics (e.g., Core Web Vitals, API latency) without impacting main thread responsiveness or network bandwidth?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Use PerformanceObserver API with requestIdleCallback or Web Workers for non-blocking processing, buffer metrics in-memory, and flush via navigator.sendBeacon() during page unload or idle network windows.",
+        "explanation": null,
+        "model_answer": "The telemetry engine utilizes the PerformanceObserver API to asynchronously collect performance entries without main-thread polling. Collected metrics are aggregated in an in-memory batch buffer processed during browser idle time using requestIdleCallback or dedicated Web Workers. Transmission to telemetry endpoints uses navigator.sendBeacon() or fetch with keepalive: true, ensuring payloads are delivered asynchronously without delaying main thread navigation or page unmount.",
+        "expected_keywords": [
+          "PerformanceObserver",
+          "navigator.sendBeacon",
+          "requestIdleCallback",
+          "Web Worker",
+          "Batch Processing"
+        ],
+        "skills": [
+          "Performance Telemetry",
+          "Browser Internal APIs",
+          "Client System Architecture"
+        ],
+        "tags": [
+          "system-design",
+          "telemetry",
+          "performance"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 120
+      },
+      {
+        "question": "In an SSR/SSG micro-frontend platform with client-side state hydration, what is the primary risk of using a shared global event bus (e.g., Window Event Dispatcher) for cross-micro-frontend state synchronization, and how should it be mitigated at scale?",
+        "question_type": "mcq",
+        "options": [
+          "It causes severe memory leaks and tight coupling due to unmanaged listener lifecycles; mitigated by using explicit event schema contracts with reactive publish/subscribe store proxies and strict listener unbind cleanup hooks.",
+          "It blocks the main UI thread during DOM rendering; mitigated by offloading all event listeners to Web Workers.",
+          "It breaks Server-Side Rendering hydration matching; mitigated by converting all micro-frontends to run as isolated iframe containers.",
+          "It bypasses Content Security Policies (CSP); mitigated by encrypting event payload signatures before broadcasting."
+        ],
+        "correct_answer": "It causes severe memory leaks and tight coupling due to unmanaged listener lifecycles; mitigated by using explicit event schema contracts with reactive publish/subscribe store proxies and strict listener unbind cleanup hooks.",
+        "explanation": "Unmanaged event listeners on global window objects retain component references, causing memory leaks across SPA navigations and dynamic micro-frontend mounting. Enforcing schema-validated Pub/Sub instances with lifecycle-aware cleanup mitigates memory bloat and tight architecture coupling.",
+        "model_answer": null,
+        "expected_keywords": [
+          "Memory Leaks",
+          "Pub/Sub",
+          "Lifecycle Cleanup",
+          "Event Bus"
+        ],
+        "skills": [
+          "Micro-Frontend Architecture",
+          "Memory Management",
+          "State Management"
+        ],
+        "tags": [
+          "system-design",
+          "micro-frontends",
+          "state-management"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 60
+      },
+      {
+        "question": "You are building a real-time financial trading platform UI that receives up to 10,000 price ticks per second over WebSockets. Updating the React/DOM component tree on every tick causes main thread freeze and unresponsiveness. Design a client-side architecture to ingest, buffer, render, and throttle this data stream seamlessly.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Decouple data ingestion from rendering using a Web Worker to manage WebSocket connections and maintain a ring buffer, then batch UI updates at 60fps using requestAnimationFrame driving HTML5 Canvas or targeted dynamic DOM mutations.",
+        "explanation": null,
+        "model_answer": "The architecture offloads WebSockets connection management and data parsing to a dedicated Web Worker to keep the main thread clear. Incoming high-frequency ticks are written to a fixed-size Circular Ring Buffer. The worker batches data and dispatches snapshots to the main thread via ArrayBuffer/SharedArrayBuffer at a controlled rate (e.g., matching monitor refresh rate via requestAnimationFrame). Rendering uses HTML5 Canvas or highly optimized Direct DOM manipulation via refs, completely bypassing standard React component re-rendering cycles for high-frequency tick elements.",
+        "expected_keywords": [
+          "Web Worker",
+          "Ring Buffer",
+          "requestAnimationFrame",
+          "SharedArrayBuffer",
+          "Canvas API"
+        ],
+        "skills": [
+          "High-Performance UI Architecture",
+          "Real-time Data Processing",
+          "Browser Main-Thread Optimization"
+        ],
+        "tags": [
+          "system-design",
+          "real-time",
+          "performance"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 180
+      },
+      {
+        "question": "Explain the architecture of an 'Islands Architecture' (e.g., Astro/Fresh) client dynamic setup compared to traditional Single-Page Application (SPA) SSR with full rehydration. What client-side architectural mechanisms make Islands significantly faster in terms of Time to Interactive (TTI)?",
+        "question_type": "technical",
+        "options": null,
+        "correct_answer": "Islands Architecture isolates dynamic interactive UI components within static HTML shells, allowing independent, selective, and partial client-side hydration without executing JS for static structural HTML.",
+        "explanation": null,
+        "model_answer": "Islands Architecture renders the page as static, immutable HTML on the edge/server and embeds dynamic interactive widgets as isolated 'islands'. Unlike SPA SSR which requires downloading the full JS bundle to build a virtual DOM tree and rehydrate every node, Islands load and execute JS strictly for interactive components (often triggered on-demand via IntersectionObserver or user interaction). This drastically reduces JavaScript payload, main thread parse/compile time, and Time to Interactive (TTI).",
+        "expected_keywords": [
+          "Selective Hydration",
+          "Static HTML Shell",
+          "Time to Interactive",
+          "IntersectionObserver",
+          "Partial Hydration"
+        ],
+        "skills": [
+          "SSR/SSG Architecture",
+          "Hydration Optimization",
+          "Frontend System Architecture"
+        ],
+        "tags": [
+          "system-design",
+          "islands-architecture",
+          "rendering"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 120
+      },
+      {
+        "question": "How would you design a resilient, low-latency client-side feature flagging engine for a large-scale SaaS app that prevents flicker/layout shifts while avoiding blocking synchronous script execution?",
+        "question_type": "short_answer",
+        "options": null,
+        "correct_answer": "Evaluate feature flag rules at Edge (CDN) / SSR runtime or bootstrap local evaluation state via cached IndexedDB/LocalStorage, fallback to local default values, and apply dynamic flag rules before paint without blocking render.",
+        "explanation": null,
+        "model_answer": "To prevent layout shift (CLS) without blocking initial render, feature flag configurations should be computed at Edge/SSR time and injected as a bootstrapping state payload into the initial HTML payload. For SPA client navigation, flags are maintained in local persistence (IndexedDB/LocalStorage) with background polling or SSE updates for real-time toggles. Flag evaluations are synchronous local lookups against the cached engine instance, guaranteeing zero render blocking and eliminating dynamic layout reflows during client execution.",
+        "expected_keywords": [
+          "Edge Evaluation",
+          "Bootstrapped State",
+          "IndexedDB / LocalStorage",
+          "Zero CLS",
+          "Synchronous Evaluation"
+        ],
+        "skills": [
+          "Feature Flagging Systems",
+          "Client-Side Resilience",
+          "Web Performance Design"
+        ],
+        "tags": [
+          "system-design",
+          "feature-flags",
+          "performance"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 120
+      },
+      {
+        "question": "You are designing the architecture for a collaborative real-time whiteboarding application (like Figma or Miro) that needs to support hundreds of concurrent users per room with low latency. How would you design the client-side state management, local rendering loop, data synchronization pipeline, and offline/reconnection reconciliation strategy to ensure smooth 60fps performance without UI lag or state corruption?",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Architect a decoupled rendering loop off the main thread using WebGL/Canvas, leverage CRDTs (e.g., Yjs) over WebSockets/WebRTC for decentralized conflict resolution, and maintain an IndexedDB queue for optimistic updates and offline state reconciliation.",
+        "explanation": null,
+        "model_answer": "To maintain 60fps performance, separate UI DOM rendering from canvas graphics by using WebGL/Canvas driven by a dedicated Web Worker and requestAnimationFrame loop, keeping heavy computations off the main thread. State synchronization should utilize Conflict-free Replicated Data Types (CRDTs) like Yjs transmitted over WebSockets with WebRTC fallback, enabling real-time updates with deterministic client-side conflict resolution. For network degradation, implement optimistic local state mutations stored in IndexedDB with an exponential backoff queue that replays unacknowledged operations upon dynamic reconnection.",
+        "expected_keywords": [
+          "CRDT",
+          "Web Worker",
+          "Optimistic Updates",
+          "IndexedDB",
+          "WebSocket"
+        ],
+        "skills": [
+          "Client-Side Architecture",
+          "Real-time Synchronization",
+          "Performance Optimization"
+        ],
+        "tags": [
+          "Real-time",
+          "CRDT",
+          "State Management"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 180
+      },
+      {
+        "question": "Architect a resilient, offline-first client architecture for a real-time collaborative canvas application (e.g., Figma or Miro) that supports rendering over 50,000 live-updating vector objects. Detail how you would isolate heavy computations off the main thread, handle offline state mutation persistence with Conflict-free Replicated Data Types (CRDTs), optimize dynamic canvas rendering performance, and reconcile state upon network reconnection.",
+        "question_type": "scenario",
+        "options": null,
+        "correct_answer": "Offloading graph state mutations and CRDT merging to Web Workers, using IndexedDB for offline persistence, rendering via WebGL/Canvas with spatial indexing (R-Tree), and utilizing delta sync via WebSockets/WebRTC with state vector reconciliation.",
+        "explanation": null,
+        "model_answer": "To maintain 60 FPS while handling heavy real-time updates, all CRDT conflict resolution logic and tree-state mutations must be offloaded to a Web Worker, persisting delta logs locally using IndexedDB. Rendering should utilize a WebGL or 2D Canvas pipeline integrated with spatial indexing (like an R-Tree) to perform viewport culling and only paint visible elements. Network communication should rely on WebSockets or WebRTC for low-latency bidirectional streaming, queueing delta operations locally during offline periods and using state vector exchange upon reconnection to execute fast diff reconciliation without reloading full snapshots.",
+        "expected_keywords": [
+          "CRDT",
+          "Web Worker",
+          "IndexedDB",
+          "R-Tree",
+          "Viewport Culling"
+        ],
+        "skills": [
+          "Frontend System Design",
+          "Real-Time Architecture",
+          "State Synchronization"
+        ],
+        "tags": [
+          "System Design",
+          "Performance",
+          "Offline-First"
+        ],
+        "topic": "System Design",
+        "difficulty": "hard",
+        "estimated_time": 180
+      }
+    ],
+    "Security": [],
+    "Optimization": [],
+    "Architecture": []
+  }
+}

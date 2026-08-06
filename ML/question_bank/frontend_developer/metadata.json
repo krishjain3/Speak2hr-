@@ -1,0 +1,114 @@
+{
+  "role": "frontend_developer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:52:22.135388+00:00",
+  "last_updated": "2026-08-06T12:46:28.953301+00:00",
+  "total_questions": 134,
+  "easy_count": 60,
+  "medium_count": 64,
+  "hard_count": 10,
+  "topic_distribution": {
+    "HTML": 15,
+    "CSS": 15,
+    "JavaScript": 15,
+    "Responsive Design": 15,
+    "React": 14,
+    "State Management": 15,
+    "REST APIs": 15,
+    "Routing": 10,
+    "Performance": 10,
+    "System Design": 10,
+    "Security": 0,
+    "Optimization": 0,
+    "Architecture": 0
+  },
+  "topics_completion": {
+    "HTML": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "CSS": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "JavaScript": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "Responsive Design": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "React": {
+      "target": 20,
+      "current": 14,
+      "completed": false
+    },
+    "State Management": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "REST APIs": {
+      "target": 15,
+      "current": 15,
+      "completed": true
+    },
+    "Routing": {
+      "target": 10,
+      "current": 10,
+      "completed": true
+    },
+    "Performance": {
+      "target": 10,
+      "current": 10,
+      "completed": true
+    },
+    "System Design": {
+      "target": 10,
+      "current": 10,
+      "completed": true
+    },
+    "Security": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Optimization": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    },
+    "Architecture": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0",
+  "generation_status": "in_progress",
+  "last_generation_attempt": "2026-08-06T12:46:28.953301+00:00",
+  "generation_progress": "134/170 questions (78.8%)",
+  "completed_topics": [
+    "HTML",
+    "CSS",
+    "JavaScript",
+    "Responsive Design",
+    "State Management",
+    "REST APIs",
+    "Routing",
+    "Performance",
+    "System Design"
+  ],
+  "remaining_topics": [
+    "React",
+    "Security",
+    "Optimization",
+    "Architecture"
+  ]
+}

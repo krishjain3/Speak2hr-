@@ -17,8 +17,6 @@ import re
 import numpy as np
 from numpy.linalg import norm
 import base64
-from io import BytesIO
-import tempfile
 import shutil
 import uuid
 import logging
@@ -26,7 +24,6 @@ import time
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import random
-import hashlib
 import asyncio
 import sqlite3
 from database import init_db, get_db_connection
@@ -46,18 +43,16 @@ from gensim.models.doc2vec import Doc2Vec
 # Video/Image processing for emotion analysis
 import cv2
 from deepface import DeepFace
-import pandas as pd
 
 from contextlib import asynccontextmanager
 
 # PDF Generation
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.pdfgen import canvas
+from reportlab.lib.enums import TA_CENTER
 
 # Email
 import smtplib
@@ -146,6 +141,17 @@ async def lifespan(app: FastAPI):
     active_keys = sum(1 for key in API_KEYS.values() if key)
     logger.info(f"Active API keys: {active_keys}/{len(API_KEYS)}")
     
+    # Load cached question banks and metadata into memory
+    try:
+        from question_bank_manager import ROLE_FOLDER_MAP, load_role_question_bank, load_role_metadata
+        logger.info("Loading cached question banks into memory...")
+        for role_folder in ROLE_FOLDER_MAP.values():
+            load_role_question_bank(role_folder)
+            load_role_metadata(role_folder)
+        logger.info("Cached question banks and metadata loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to load cached question banks: {e}")
+        
     logger.info("Application startup complete")
     yield
     
@@ -759,204 +765,7 @@ def analyze_skill_gap(resume_summary, job_description):
         logger.error(f"Failed to parse skill gap analysis: {str(e)}")
         raise ValueError(f"Failed to parse skill gap analysis: {str(e)}")
 
-def generate_unique_seed(user_id: str, date: str, category: str, attempt: int = 0):
-    """Generate unique seed for question generation"""
-    seed_string = f"{user_id}_{date}_{category}_{attempt}_{random.random()}"
-    return hashlib.md5(seed_string.encode()).hexdigest()
 
-INTERVIEW_QUESTION_CACHE = {}
-
-async def generate_progressive_questions(
-    job_description: str, 
-    role: str, 
-    user_id: str,
-    candidate_skills: List[str],
-    candidate_experience_years: int,
-    candidate_work_history: Optional[List[Dict[str, str]]] = None,
-    candidate_name: Optional[str] = None,
-    num_questions: int = 8,
-    interview_level: str = "Technical Basic"
-):
-    """
-    Generate personalized questions based on candidate skills, experience and JD
-    All 8 levels generated in a single Gemini API call to reduce latency and hit-rate issues.
-    """
-
-    # 2. Generate questions
-    client = get_client("secondary")
-    
-    # Format work history nicely
-    work_history_text = ""
-    if candidate_work_history:
-        work_history_text = ", ".join([
-            f"{w.get('role', 'Role')} at {w.get('company', 'Company')} ({w.get('duration', 'Duration')})" 
-            for w in candidate_work_history[:3]
-        ])
-        
-    seed = generate_unique_seed(user_id, datetime.now().isoformat(), "interview")
-    
-    # Load candidate history to avoid asking the same questions
-    history_file = DAILY_QUESTIONS_DIR / f"{user_id}_history.json"
-    question_history = []
-    if history_file.exists():
-        try:
-            with open(history_file, 'r') as f:
-                question_history = json.load(f)
-        except Exception:
-            question_history = []
-            
-    # Set target level instructions
-    level_instruction = ""
-    if interview_level == "Technical Basic":
-        level_instruction = "All questions must be introductory, testing basic terminologies, fundamental concepts, core mechanics, and junior-level responsibilities."
-    elif interview_level == "Technical Advanced":
-        level_instruction = "All questions must be advanced, testing deep-dive implementations, framework mechanics, advanced design patterns, and senior developer topics."
-    elif interview_level == "Tech Expert":
-        level_instruction = "All questions must be expert-level, testing enterprise-scale system design, high scalability, extreme concurrency, performance optimization, and architectural trade-offs."
-    elif interview_level == "HR Basic":
-        level_instruction = "Focus primarily on soft skills, teamwork, basic work ethics, personal growth, and introductory communication scenarios. Keep technical questions simple."
-    elif interview_level == "HR Intermediate":
-        level_instruction = "Focus on leadership, situational conflict resolution, prioritization under tight deadlines, resource allocation, and project management scenarios."
-    elif interview_level == "Problem Solving":
-        level_instruction = "Focus heavily on logic, coding efficiency, algorithms, troubleshooting under pressure, analytical deduction, and complex system debugging."
-    else:
-        level_instruction = "Tailor questions dynamically to the candidate's experience level."
-        
-    session_id = str(uuid.uuid4())
-    all_questions = []
-    
-    # Retry logic loop for generating unique questions
-    max_retries = 3
-    for attempt in range(max_retries):
-        current_seed = f"{seed}_{attempt}_{random.randint(1000, 9999)}"
-        
-        prompt = f"""
-        Generate 8 PERSONALIZED interview questions, one for each level in the progression below, based on the candidate's profile and job description.
-        
-        **CANDIDATE PROFILE:**
-        Name: Candidate
-        Role Applied: {role}
-        Skills: {', '.join(candidate_skills) if candidate_skills else 'Not specified'}
-        Experience: {candidate_experience_years} years
-        Recent Work: {work_history_text if work_history_text else 'Not specified'}
-        
-        **JOB REQUIREMENTS:**
-        {job_description[:800]}...
-        
-        **INTERVIEW LEVEL:**
-        Selected Level: {interview_level}
-        Level Guidelines: {level_instruction}
-        
-        **CRITICAL ROLE RELEVANCE RULE:**
-        Every question generated MUST be directly relevant to the target role ({role}). Under no circumstances should you generate questions from unrelated domains or other roles (for example, if the role is Data Scientist, do not ask about frontend HTML/CSS or Java web frameworks. If the role is HR, keep technical concepts general and soft-skills focused). Keep all questions strictly focused on the core responsibilities, competencies, and domain of a {role}.
-
-        **QUESTION LEVELS:**
-        1. Introduction (Behavioral, Easy, Weight: 0.8) - Ask the candidate to introduce themselves, tell about their background, and what attracts them to this role.
-        2. Recent Project (Technical, Medium, Weight: 1.0) - Ask candidate to walk through a significant recent project they worked on, their technical role, and key outcomes.
-        3. Technical Concepts (Technical, Medium, Weight: 1.1) - Ask specific conceptual questions related to their core stack/skills.
-        4. Coding/Algorithms (Technical, Hard, Weight: 1.3) - Ask a coding, database query, or algorithm design problem scenario relevant to the job.
-        5. System Design (Technical, Hard, Weight: 1.4) - Ask how they would design a system, architecture, or workflow for a practical scenario relevant to the role.
-        6. Behavioral (STAR) (Behavioral, Medium, Weight: 1.1) - Ask a situational behavioral question about teamwork, dealing with failure, or tight deadlines.
-        7. Scenario Analysis (Technical, Hard, Weight: 1.5) - Present a complex technical issue (like performance bottleneck, data integrity, pipeline failure) and ask how they would debug and solve it.
-        8. Career Goals (Behavioral, Easy, Weight: 0.8) - Ask about their career roadmap, what they hope to achieve in 3-5 years, and how this role fits.
-        
-        Uniqueness Seed: {current_seed}
-        {"Avoid asking about these topics or questions as they were recently asked: " + ", ".join(question_history[-10:]) if question_history else ""}
-        
-        Return ONLY a valid JSON array of exactly 8 objects, in order:
-        [
-            {{
-                "level": 1,
-                "level_name": "Introduction",
-                "category": "behavioral",
-                "difficulty": "easy",
-                "weight": 0.8,
-                "question": "Question text...",
-                "expected_keywords": ["keyword1", "keyword2"]
-            }},
-            ...
-        ]
-        Ensure strictly valid JSON format with no extra text.
-        """
-        
-        try:
-            response = await asyncio.to_thread(
-                generate_content_with_retry,
-                client_type="secondary",
-                contents=prompt,
-                config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.8)
-            )
-            response_text = response.text
-            json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
-            level_questions = json.loads(json_match.group(0)) if json_match else json.loads(response_text)
-            
-            has_duplicate = False
-            history_set = {h.lower().strip() for h in question_history}
-            
-            candidate_questions_this_batch = []
-            for idx, q in enumerate(level_questions):
-                q_text = q.get("question", "").lower().strip()
-                if q_text in history_set or any(q_text[:30] == h[:30] for h in history_set if len(h) > 10 and len(q_text) > 10):
-                    has_duplicate = True
-                    logger.warning(f"Duplicate question detected: '{q.get('question')}' matches history. Retrying generation...")
-                    break
-                
-                question_id = f"{session_id}_{q['level']}_0"
-                question_data = {
-                    "question_id": question_id,
-                    "question": q["question"],
-                    "category": q["category"],
-                    "difficulty": q["difficulty"],
-                    "level": q["level"],
-                    "level_name": q["level_name"],
-                    "weight": q["weight"],
-                    "expected_keywords": q.get("expected_keywords", []),
-                    "order": idx + 1
-                }
-                candidate_questions_this_batch.append(question_data)
-                
-            if has_duplicate:
-                continue
-                
-            # Save history
-            for q in candidate_questions_this_batch:
-                question_history.append(q["question"])
-            
-            try:
-                with open(history_file, 'w') as f:
-                    json.dump(question_history[-100:], f, indent=2)
-            except Exception as hist_err:
-                logger.error(f"Error saving candidate questions history: {str(hist_err)}")
-                
-            all_questions = candidate_questions_this_batch
-            break
-            
-        except Exception as e:
-            logger.error(f"Attempt {attempt} failed to generate progressive questions: {str(e)}")
-            if attempt == max_retries - 1:
-                logger.warning(f"All Gemini generation attempts failed: {str(e)}. Triggering progressive fallback questions.")
-                
-    if not all_questions:
-        logger.info(f"Populating generic fallback progressive questions for role: {role}")
-        for idx, lvl in enumerate(QUESTION_PROGRESSION):
-            all_questions.append({
-                "question_id": f"{session_id}_{lvl['level']}_0",
-                "question": f"Tell me about your experience related to {role} role at level {lvl['name']}.",
-                "category": lvl["category"],
-                "difficulty": lvl["difficulty"],
-                "level": lvl["level"],
-                "level_name": lvl["name"],
-                "weight": lvl["weight"],
-                "expected_keywords": [],
-                "order": idx + 1
-            })
-
-    # Personalize name for this response
-    if candidate_name:
-        for q in all_questions:
-            q["question"] = q["question"].replace("Candidate", candidate_name)
-        
-    return all_questions, session_id
 
 def extract_frames_from_video(video_path: str, fps: float = 2.0):
     """Extract frames from video for emotion analysis"""
@@ -1193,298 +1002,7 @@ def map_emotion_to_score(emotion_analysis: dict) -> float:
     return min(1.0, max(0.0, final_score))
 
 
-# In-memory cache for assessment generation to ensure sub-3s response times
-ASSESSMENT_CACHE = {}
-CACHE_EXPIRY_HOURS = 24
 
-async def generate_daily_questions(
-    user_id: str,
-    role: str,
-    difficulty: str,
-    category: str,
-    num_questions: int = 10,
-    experience_level: str = "mid",
-    skills: List[str] = None
-):
-    """Generate unique daily assessment questions with automated difficulty progression and fallback database."""
-    assessment_id = str(uuid.uuid4())
-    
-    # Pre-load candidate history to ensure we avoid asking the same questions
-    history_file = DAILY_QUESTIONS_DIR / f"{user_id}_history.json"
-    question_history = []
-    if history_file.exists():
-        try:
-            with open(history_file, 'r') as f:
-                question_history = json.load(f)
-        except Exception:
-            question_history = []
-            
-    # Try generating using Gemini API
-    client = get_client("assessment")
-    if client:
-        # Resolve category context description
-        category_context = ""
-        if category == "hr":
-            category_context = "HR and behavioral questions focusing on teamwork, leadership, communication, and situational handling."
-        elif category == "hr_basic":
-            category_context = f"Basic level HR and behavioral questions focusing on simple workplace scenarios, teamwork, and introductory communication skills for a {role}."
-        elif category == "hr_intermediate":
-            category_context = f"Intermediate level HR and behavioral questions focusing on situational conflict resolution, prioritization, and project coordination for a {role}."
-        elif category == "technical":
-            category_context = f"Technical questions covering programming, system design, databases, tooling, and concepts for a {role}."
-        elif category == "technical_basic":
-            category_context = f"Foundational technical questions covering syntax, basic terminology, syntax rules, and introductory concepts for a {role}."
-        elif category == "technical_advanced":
-            category_context = f"Advanced technical questions covering deep-dive programming, design patterns, profiling, security, and framework mechanics for a {role}."
-        elif category == "tech_expert":
-            category_context = f"Expert level technical questions covering high-level architecture, scalability, optimizations, concurrency, and complex trade-offs for a {role}."
-        elif category == "problem_solving":
-            category_context = f"Problem Solving focus testing logical deduction, algorithm complexity, code troubleshooting, and analytical debugging tasks for a {role}."
-        elif category == "general":
-            category_context = f"General and basic concepts for a {role}. The questions should test foundational, elementary, and introductory terminology, core principles, and basic knowledge of the role, keeping it at a very simple and basic level."
-        elif category == "coding":
-            category_context = f"Coding syntax, algorithmic concepts, standard data structures, and logical code completion tasks tailored for a {role}."
-        elif category == "design":
-            category_context = f"Advanced system design, microservices structure, scalability, performance optimizations, and API design for a {role}."
-        else:
-            category_context = f"A balanced mix of technical questions for a {role} and behavioral/HR situations."
-
-        skills_str = ", ".join(skills) if skills else "standard role-related skills"
-        num_easy = max(1, int(num_questions * 0.3))
-        num_hard = max(1, int(num_questions * 0.3))
-        num_medium = max(1, num_questions - num_easy - num_hard)
-
-        max_retries = 3
-        for attempt in range(max_retries):
-            today = datetime.now().strftime("%Y-%m-%d")
-            seed = f"{uuid.uuid4()}_{attempt}_{random.randint(1000, 9999)}"
-            
-            prompt = f"""
-            Generate an assessment consisting of exactly {num_questions} UNIQUE questions for:
-            Role: {role}
-            Experience Level: {experience_level}
-            Skills: {skills_str}
-            Assessment Category: {category_context}
-            
-            Uniqueness Seed: {seed}
-            Date: {today}
-            
-            CRITICAL ROLE RELEVANCE RULE: Every single question in this assessment MUST be directly relevant to the selected role ({role}) and category focus. Under no circumstances should you generate questions from unrelated domains or other roles (for example, if the role is AI/ML Engineer, do not ask about React, HTML/CSS, Frontend development, or DevOps unless they directly tie into machine learning pipelines). Every question format, option, and scenario must test competencies specific to a {role}.
-
-            Avoid these previously asked topics: {', '.join(question_history[-20:]) if question_history else 'None'}
-
-            You must adjust the difficulty levels of the questions progressively throughout the assessment:
-            - The first {num_easy} questions (Questions 1 to {num_easy}) MUST be of 'easy' difficulty (relative to a candidate at the {experience_level} level).
-            - The next {num_medium} questions (Questions {num_easy + 1} to {num_easy + num_medium}) MUST be of 'medium' difficulty (relative to a candidate at the {experience_level} level).
-            - The remaining {num_hard} questions (Questions {num_easy + num_medium + 1} to {num_questions}) MUST be of 'hard' difficulty (challenging even for a candidate at the {experience_level} level).
-
-            The assessment must include a balanced distribution of the following question formats, all tailored specifically to a {role}:
-            - Multiple-Choice Questions (mcq): 4 options testing core concepts of a {role}. The 'correct_answer' must be the exact option string.
-            - Multiple-Select Questions (msq): 4 or 5 options testing complex systems/choices specific to a {role}. The 'correct_answer' MUST be a JSON array of the exact option strings that are correct, e.g., ["option1", "option2"].
-            - Short-Answer Questions (short_answer): 2-3 sentences expected on role-specific tasks. 'correct_answer' should be a concise summary of the ideal response.
-            - Scenario-Based Questions (scenario): workplace/technical scenarios requiring role-specific problem-solving. 'correct_answer' should be a structured ideal response.
-            - Logical Reasoning Questions (logical): logic patterns, algorithmic thinking, or puzzle questions relevant to a {role}'s domain. 'correct_answer' should be the correct logic statement or selected option if mcq.
-            - Role-Specific Technical Questions (technical): testing core code/concepts for a {role} with skills {skills_str}.
-
-            Each MCQ and MSQ must include:
-            - "options": list of 4-5 options.
-            - "explanation": a brief explanation of why the correct option(s) is correct (this will be shown to the candidate during review).
-            
-            Each descriptive question (short_answer, scenario, logical, technical) must include:
-            - "model_answer": A concise and direct professional model answer (maximum 3-4 sentences) showing how the question should be answered. Keep it brief and to the point.
-            
-            Return ONLY a valid JSON array of objects with the following schema:
-            [
-              {{
-                "question": "Question text...",
-                "question_type": "mcq" | "msq" | "short_answer" | "scenario" | "logical" | "technical",
-                "category": "technical" | "hr",
-                "difficulty": "easy" | "medium" | "hard",
-                "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"] (or null if not mcq/msq),
-                "correct_answer": "Exact correct option string (for mcq) OR JSON list of exact correct options (for msq) OR key points/ideal summary",
-                "expected_keywords": ["keyword1", "keyword2"],
-                "time_limit_seconds": 60 (for easy/mcq) | 120 (for medium/short) | 180 (for hard/scenario),
-                "model_answer": "Professional ideal response...",
-                "explanation": "Why correct options are correct..."
-              }}
-            ]
-            Do not add markdown formatting, return ONLY the raw JSON text.
-            """
-            
-            try:
-                response = await asyncio.to_thread(
-                    generate_content_with_retry,
-                    client_type="assessment",
-                    contents=prompt,
-                    config=genai.types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
-                )
-                
-                response_text = response.text
-                json_match = re.search(r'(\[.*\])', response_text.replace('\n', ' '), re.DOTALL)
-                questions_data = json.loads(json_match.group(0)) if json_match else json.loads(response_text)
-                
-                has_duplicate = False
-                history_set = {h.lower().strip() for h in question_history}
-                
-                candidate_questions_this_batch = []
-                for idx, q in enumerate(questions_data):
-                    q_text = q.get("question", "").lower().strip()
-                    if q_text in history_set or any(q_text[:30] == h[:30] for h in history_set if len(h) > 10 and len(q_text) > 10):
-                        has_duplicate = True
-                        logger.warning(f"Duplicate daily question detected: '{q.get('question')}' matches history. Retrying generation...")
-                        break
-                        
-                    q_id = f"{assessment_id}_{idx}"
-                    candidate_questions_this_batch.append({
-                        "question_id": q_id,
-                        "question": q.get("question"),
-                        "category": q.get("category", category),
-                        "difficulty": q.get("difficulty", "medium"),
-                        "options": q.get("options"),
-                        "question_type": q.get("question_type", "short_answer"),
-                        "expected_keywords": q.get("expected_keywords", []),
-                        "time_limit_seconds": q.get("time_limit_seconds", 60),
-                        "correct_answer": q.get("correct_answer", ""),
-                        "model_answer": q.get("model_answer"),
-                        "explanation": q.get("explanation")
-                    })
-                    
-                if has_duplicate:
-                    continue
-                    
-                # Save history
-                for q in candidate_questions_this_batch:
-                    question_history.append(q["question"])
-                    
-                try:
-                    with open(history_file, 'w') as f:
-                        json.dump(question_history[-100:], f, indent=2)
-                except Exception as hist_err:
-                    logger.error(f"Error saving daily questions history: {str(hist_err)}")
-                    
-                logger.info(f"Successfully generated {len(candidate_questions_this_batch)} unique assessment questions via Gemini")
-                return candidate_questions_this_batch, assessment_id
-                
-            except Exception as api_err:
-                logger.warning(f"Attempt {attempt} failed to generate daily questions via Gemini: {str(api_err)}")
-                if attempt == max_retries - 1:
-                    logger.warning(f"Gemini API failed to generate questions, switching to fallback: {str(api_err)}")
-
-    # Fallback Mechanism: Load questions from local JSON bank
-    logger.info("Triggering offline/fallback question generation")
-    fallback_file = Path("assessments/fallback_questions.json")
-    if not fallback_file.exists():
-        fallback_file = Path("ML/assessments/fallback_questions.json")
-        
-    if fallback_file.exists():
-        try:
-            with open(fallback_file, 'r') as f:
-                all_fallback = json.load(f)
-        except Exception as json_err:
-            logger.error(f"Failed to read fallback questions JSON: {json_err}")
-            all_fallback = []
-    else:
-        logger.error(f"Fallback questions file not found at {fallback_file}!")
-        all_fallback = []
-
-    # 1. Filter by category
-    if category == "mixed":
-        filtered = all_fallback
-    else:
-        filtered = [q for q in all_fallback if q.get("category") == category]
-        if not filtered:
-            filtered = all_fallback
-            
-    # 2. Filter by role
-    role_matching = []
-    role_lower = role.lower()
-    for q in filtered:
-        q_role = q.get("role", "general").lower()
-        if q_role in role_lower or role_lower in q_role:
-            role_matching.append(q)
-            
-    # If not enough questions for specific role, include general/software engineer questions
-    if len(role_matching) < num_questions:
-        for q in filtered:
-            q_role = q.get("role", "general").lower()
-            if q not in role_matching and q_role in ("general", "software engineer", "software_engineer"):
-                role_matching.append(q)
-                
-    # Fallback to all filtered questions if we are still short
-    if len(role_matching) < num_questions:
-        role_matching = filtered if filtered else all_fallback
-
-    # 3. Group by difficulty
-    easy_pool = [q for q in role_matching if q.get("difficulty") == "easy"]
-    medium_pool = [q for q in role_matching if q.get("difficulty") == "medium"]
-    hard_pool = [q for q in role_matching if q.get("difficulty") == "hard"]
-
-    # In case any pool is empty, populate from the main pool
-    if not easy_pool:
-        easy_pool = role_matching
-    if not medium_pool:
-        medium_pool = role_matching
-    if not hard_pool:
-        hard_pool = role_matching
-
-    # Determine slots
-    num_easy = max(1, int(num_questions * 0.3))
-    num_hard = max(1, int(num_questions * 0.3))
-    num_medium = max(1, num_questions - num_easy - num_hard)
-
-    selected_questions = []
-    chosen_questions = set()
-    
-    def pick_unique(pool, count):
-        available = [q for q in pool if q.get("question") not in chosen_questions]
-        sampled = random.sample(available, min(count, len(available)))
-        for q in sampled:
-            chosen_questions.add(q.get("question"))
-        return sampled
-
-    # Select easy
-    selected_questions.extend(pick_unique(easy_pool, num_easy))
-    
-    # Select medium
-    selected_questions.extend(pick_unique(medium_pool, num_medium))
-    
-    # Select hard
-    selected_questions.extend(pick_unique(hard_pool, num_hard))
-    
-    # If we are still short of num_questions, fill from the remaining role_matching questions
-    if len(selected_questions) < num_questions:
-        remaining = [q for q in role_matching if q.get("question") not in chosen_questions]
-        selected_questions.extend(pick_unique(remaining, num_questions - len(selected_questions)))
-        
-    # If we are STILL short of num_questions, fill from the remaining filtered questions
-    if len(selected_questions) < num_questions:
-        remaining = [q for q in filtered if q.get("question") not in chosen_questions]
-        selected_questions.extend(pick_unique(remaining, num_questions - len(selected_questions)))
-
-    # If we are STILL short, only then allow random choice with duplicates
-    while len(selected_questions) < num_questions:
-        selected_questions.append(random.choice(all_fallback))
-
-    # Construct final questions
-    final_questions = []
-    for idx, q in enumerate(selected_questions):
-        q_id = f"{assessment_id}_{idx}"
-        final_questions.append({
-            "question_id": q_id,
-            "question": q.get("question"),
-            "category": q.get("category", category),
-            "difficulty": q.get("difficulty", "medium"),
-            "options": q.get("options"),
-            "question_type": q.get("question_type", "short_answer"),
-            "expected_keywords": q.get("expected_keywords", []),
-            "time_limit_seconds": q.get("time_limit_seconds", 60),
-            "correct_answer": q.get("correct_answer", ""),
-            "model_answer": q.get("model_answer"),
-            "explanation": q.get("explanation")
-        })
-
-    logger.info(f"Loaded {len(final_questions)} fallback questions for assessment")
-    return final_questions, assessment_id
 
 async def evaluate_daily_assessment(assessment_id: str, user_id: str, answers: Dict[str, str]):
     """Evaluate daily assessment submission"""
@@ -2484,23 +2002,42 @@ async def analyze_skill_gaps(request: SkillGapRequest):
 @app.post("/api/interview/generate-questions", response_model=InterviewQuestionsResponse)
 async def generate_interview_questions_endpoint(request: InterviewQuestionRequest):
     """
-    CORRECTED: Generate questions using structured resume data
-    Frontend should send: skills array, experience years, work history
-    NOT the entire resume summary text
+    Generate questions using cached file-based question bank.
+    No runtime Gemini calls for question generation.
     """
     logger.info(f"[/api/interview/generate-questions] Generating questions for user_id={request.user_id}, candidate_name={request.candidate_name}, role={request.role}")
     try:
-        questions, session_id = await generate_progressive_questions(
-            job_description=request.job_description,
-            role=request.role,
+        from question_bank_manager import ROLE_FOLDER_MAP, is_role_generated
+        role_folder = ROLE_FOLDER_MAP.get(request.role)
+        if not role_folder:
+            role_folder = request.role.lower().replace(" ", "_").replace("/", "")
+            if role_folder not in ROLE_FOLDER_MAP.values():
+                role_folder = "software_engineer"
+                
+        if not is_role_generated(role_folder):
+            from fastapi.responses import JSONResponse
+            friendly_role = [k for k, v in ROLE_FOLDER_MAP.items() if v == role_folder]
+            friendly_role_name = friendly_role[0] if friendly_role else request.role
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "QUESTION_BANK_NOT_FOUND",
+                    "message": f"Question bank for '{friendly_role_name}' has not been generated yet.",
+                    "role": role_folder,
+                    "suggested_command": f"python generate_question_bank.py {role_folder}",
+                    "documentation": "Run the suggested command once to generate the question bank. After generation, restart the assessment."
+                }
+            )
+
+        from question_bank_manager import get_interview_questions, record_candidate_questions
+        questions, session_id = get_interview_questions(
             user_id=request.user_id,
-            candidate_skills=request.candidate_skills,
-            candidate_experience_years=request.candidate_experience_years,
-            candidate_work_history=request.candidate_work_history,
-            candidate_name=request.candidate_name,
-            num_questions=request.num_questions,
-            interview_level=request.interview_level
+            role_string=request.role,
+            candidate_name=request.candidate_name or "Candidate"
         )
+        
+        # Record questions to candidate history
+        record_candidate_questions(request.user_id, questions, role=request.role)
         
         # Save questions to file
         questions_file = RECORDINGS_DIR / f"{session_id}_questions.json"
@@ -2926,17 +2463,38 @@ async def download_report(filename: str):
 
 @app.post("/api/assessment/generate", response_model=DailyAssessmentResponse)
 async def generate_daily_assessment(request: DailyAssessmentRequest):
-    """Generate daily assessment with unique questions"""
+    """Generate daily assessment using the cached file-based question bank"""
     try:
-        questions, assessment_id = await generate_daily_questions(
+        from question_bank_manager import ROLE_FOLDER_MAP, is_role_generated
+        role_folder = ROLE_FOLDER_MAP.get(request.role)
+        if not role_folder:
+            role_folder = request.role.lower().replace(" ", "_").replace("/", "")
+            if role_folder not in ROLE_FOLDER_MAP.values():
+                role_folder = "software_engineer"
+                
+        if not is_role_generated(role_folder):
+            from fastapi.responses import JSONResponse
+            friendly_role = [k for k, v in ROLE_FOLDER_MAP.items() if v == role_folder]
+            friendly_role_name = friendly_role[0] if friendly_role else request.role
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "QUESTION_BANK_NOT_FOUND",
+                    "message": f"Question bank for '{friendly_role_name}' has not been generated yet.",
+                    "role": role_folder,
+                    "suggested_command": f"python generate_question_bank.py {role_folder}",
+                    "documentation": "Run the suggested command once to generate the question bank. After generation, restart the assessment."
+                }
+            )
+
+        from question_bank_manager import get_assessment_questions, record_candidate_questions
+        questions, assessment_id = get_assessment_questions(
             user_id=request.user_id,
-            role=request.role,
-            difficulty=request.difficulty or "medium",
-            category=request.category,
-            num_questions=request.num_questions or 10,
-            experience_level=request.experience_level or "mid",
-            skills=request.skills
+            role_string=request.role
         )
+        
+        # Record questions to candidate history to ensure they aren't repeated
+        record_candidate_questions(request.user_id, questions, role=request.role)
         
         # Store assessment
         assessment_data = {

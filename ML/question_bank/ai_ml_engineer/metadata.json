@@ -1,0 +1,70 @@
+{
+  "role": "ai_ml_engineer",
+  "version": "1.1.0",
+  "generated_at": "2026-07-30T14:01:27.832950+00:00",
+  "last_updated": "2026-07-30T14:01:27.832950+00:00",
+  "total_questions": 0,
+  "easy_count": 0,
+  "medium_count": 0,
+  "hard_count": 0,
+  "topic_distribution": {
+    "Python Programming": 0,
+    "Linear Algebra": 0,
+    "Basic Datasets": 0,
+    "Scikit-Learn": 0,
+    "Deep Learning Frameworks (PyTorch/TensorFlow)": 0,
+    "Computer Vision": 0,
+    "Fine-Tuning LLMs": 0,
+    "Reinforcement Learning": 0,
+    "Custom Optimizations": 0
+  },
+  "topics_completion": {
+    "Python Programming": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Linear Algebra": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Basic Datasets": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Scikit-Learn": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Deep Learning Frameworks (PyTorch/TensorFlow)": {
+      "target": 25,
+      "current": 0,
+      "completed": false
+    },
+    "Computer Vision": {
+      "target": 20,
+      "current": 0,
+      "completed": false
+    },
+    "Fine-Tuning LLMs": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Reinforcement Learning": {
+      "target": 15,
+      "current": 0,
+      "completed": false
+    },
+    "Custom Optimizations": {
+      "target": 10,
+      "current": 0,
+      "completed": false
+    }
+  },
+  "generation_model": "gemini-2.0-flash",
+  "schema_version": "1.0"
+}

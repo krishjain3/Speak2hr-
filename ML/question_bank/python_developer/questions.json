@@ -1,0 +1,18 @@
+{
+  "role": "python_developer",
+  "easy": {
+    "Basic Syntax": [],
+    "Data Structures": [],
+    "Functions": []
+  },
+  "medium": {
+    "Advanced Python": [],
+    "Web Frameworks (Django/Flask)": [],
+    "Async IO": []
+  },
+  "hard": {
+    "Large Scale Systems": [],
+    "Performance Optimization": [],
+    "Metaprogramming": []
+  }
+}
