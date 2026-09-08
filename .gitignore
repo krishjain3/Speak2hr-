@@ -70,3 +70,8 @@ ML/videos/
 Thumbs.db
 .AppleDouble
 .LSOverride
+
+# =========================
+# Java / Maven
+# =========================
+target/

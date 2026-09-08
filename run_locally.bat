@@ -1,12 +1,12 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
 
-echo Starting Speak2HR setup and run script...
+echo Starting Speak2HR Java Spring Boot setup and run script...
 
-:: Check for Python
-where python >nul 2>nul
+:: Check for Java
+where java >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Python not found. Please install Python 3.8+ and add it to your PATH.
+    echo [ERROR] Java not found. Please install Java 17+ and add it to your PATH.
     pause
     exit /b
 )
@@ -19,31 +19,14 @@ if %ERRORLEVEL% neq 0 (
     exit /b
 )
 
-:: Setup Backend
-echo.
-echo === Setting up Backend (ML) ===
-cd ML
-if not exist venv (
-    echo Creating virtual environment...
-    python -m venv venv
-)
-
-echo Activating virtual environment and installing dependencies...
-call venv\Scripts\activate.bat
-pip install -r requirements.txt
-
-:: Check for .env in Backend
-if not exist .env (
-    echo [WARNING] .env file not found in ML folder.
-    if exist .env.example (
-        echo Copying .env.example to .env ...
-        copy .env.example .env
-        echo [IMPORTANT] Please add your Gemini API keys to ML/.env
-    ) else (
-        echo [ERROR] .env.example not found. Please create ML/.env manually.
+:: Set JAVA_HOME if default JDK present
+if not defined JAVA_HOME (
+    if exist "C:\Program Files\Java\jdk-21" (
+        set "JAVA_HOME=C:\Program Files\Java\jdk-21"
+    ) else if exist "C:\Program Files\Java\jdk-17" (
+        set "JAVA_HOME=C:\Program Files\Java\jdk-17"
     )
 )
-cd ..
 
 :: Setup Frontend
 echo.
@@ -56,12 +39,9 @@ if not exist node_modules (
 
 :: Check for .env in Frontend
 if not exist .env (
-    echo [WARNING] .env file not found in frontend folder.
     if exist .env.example (
         echo Copying .env.example to .env ...
         copy .env.example .env
-    ) else (
-        echo [ERROR] .env.example not found. Please create frontend/.env manually.
     )
 )
 cd ..
@@ -69,15 +49,15 @@ cd ..
 :: Start both servers
 echo.
 echo === Starting Servers ===
-echo The Backend will start at http://localhost:8000
-echo The Frontend will start at http://localhost:3000
+echo The Java Spring Boot Backend will start at http://localhost:8000
+echo The React Frontend will start at http://localhost:3000
 echo.
 
-:: Use start command to run them concurrently in new windows
-start cmd /k "cd ML && venv\Scripts\activate.bat && python main.py"
+start cmd /k "mvnw.cmd spring-boot:run"
 start cmd /k "cd frontend && npm start"
 
 echo Servers are starting in separate windows.
-echo If they don't open automatically, visit the URLs mentioned above.
+echo Frontend: http://localhost:3000
+echo Backend Health: http://localhost:8000/health
 echo.
 pause
