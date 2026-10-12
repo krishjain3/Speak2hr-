@@ -134,6 +134,65 @@ export const interviewAPI = {
   },
 };
 
+// Resume-Based RAG Interview APIs
+export const resumeRagAPI = {
+  uploadResume: async (file, candidateId) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (candidateId) {
+      formData.append('candidate_id', candidateId);
+    }
+    return api.post('/api/resume/upload-rag', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+  },
+
+  getCandidateResumes: async (candidateId) => {
+    return api.get(`/api/resume/candidate/${candidateId}`);
+  },
+
+  generateQuestions: async (data) => {
+    return api.post('/api/interview/rag/generate-questions', {
+      candidate_id: data.candidateId,
+      resume_id: data.resumeId,
+      role: data.role || 'Software Engineer',
+      candidate_name: data.candidateName || 'Candidate',
+      candidate_email: data.candidateEmail || '',
+      num_questions: data.numQuestions || 10,
+      difficulty: data.difficulty || 'medium',
+      focus_area: data.focusArea || null,
+    });
+  },
+
+  getSession: async (sessionId, candidateId) => {
+    const url = candidateId
+      ? `/api/interview/rag/session/${sessionId}?candidate_id=${candidateId}`
+      : `/api/interview/rag/session/${sessionId}`;
+    return api.get(url);
+  },
+
+  evaluateTextResponse: async (data) => {
+    return api.post('/api/interview/rag/evaluate-text-response', {
+      session_id: data.sessionId,
+      candidate_id: data.candidateId,
+      question_id: data.questionId,
+      question: data.question,
+      answer_text: data.answerText,
+      category: data.category || 'technical',
+      difficulty: data.difficulty || 'medium',
+      expected_keywords: data.expectedKeywords || [],
+    });
+  },
+
+  getSessionReport: async (sessionId, candidateId) => {
+    const url = candidateId
+      ? `/api/interview/rag/session/${sessionId}/report?candidate_id=${candidateId}`
+      : `/api/interview/rag/session/${sessionId}/report`;
+    return api.get(url);
+  },
+};
+
 // Assessment APIs
 export const assessmentAPI = {
   generate: async (userId, role, difficulty = 'medium', category = 'technical', experienceLevel = 'mid', skills = []) => {

@@ -119,6 +119,74 @@ def init_db():
         )
     ''')
     
+    # Candidate Resumes Table (for RAG pipeline)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS candidate_resumes (
+            id TEXT PRIMARY KEY,
+            candidate_id TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            file_hash TEXT NOT NULL,
+            raw_text TEXT NOT NULL,
+            parsed_summary TEXT,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # Resume Chunks and Vector Embeddings Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resume_chunks (
+            id TEXT PRIMARY KEY,
+            resume_id TEXT NOT NULL,
+            candidate_id TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            chunk_text TEXT NOT NULL,
+            category TEXT,
+            heading TEXT,
+            technologies TEXT,
+            embedding TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # Resume Interview Sessions Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resume_interview_sessions (
+            id TEXT PRIMARY KEY,
+            candidate_id TEXT NOT NULL,
+            resume_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            difficulty TEXT NOT NULL,
+            total_questions INTEGER NOT NULL,
+            questions_json TEXT NOT NULL,
+            current_question_index INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'in_progress',
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        )
+    ''')
+
+    # Resume Interview Evaluations Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resume_interview_evaluations (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            candidate_id TEXT NOT NULL,
+            question_id TEXT NOT NULL,
+            question TEXT NOT NULL,
+            answer_text TEXT,
+            relevance_score REAL DEFAULT 0,
+            technical_accuracy_score REAL DEFAULT 0,
+            clarity_score REAL DEFAULT 0,
+            confidence_score REAL DEFAULT 0,
+            overall_score REAL DEFAULT 0,
+            feedback TEXT,
+            strengths TEXT,
+            improvements TEXT,
+            evaluation_json TEXT,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    
     # Dynamic schema migrations for new features
     users_new_cols = {
         "phone": "TEXT",
@@ -155,6 +223,11 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_video_sessions_hr ON video_sessions(hr_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_evaluations_candidate ON evaluations(candidate_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_resumes_candidate ON candidate_resumes(candidate_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_resume ON resume_chunks(resume_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_candidate ON resume_chunks(candidate_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_resume_sessions_candidate ON resume_interview_sessions(candidate_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_resume_eval_session ON resume_interview_evaluations(session_id)")
     
     # Check if we need to seed an admin user
     cursor.execute("SELECT COUNT(*) as count FROM users WHERE email = 'admin@company.com'")

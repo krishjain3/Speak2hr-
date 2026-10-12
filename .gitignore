@@ -5,6 +5,8 @@ node_modules/
 frontend/node_modules/
 frontend/build/
 frontend/dist/
+target/
+pom.xml.tag
 
 # =========================
 # Python
@@ -25,6 +27,7 @@ ML/__pycache__/
 # =========================
 .env
 .env.*
+!.env.example
 
 # =========================
 # Database
