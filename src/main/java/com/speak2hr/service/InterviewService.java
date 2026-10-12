@@ -123,7 +123,7 @@ public class InterviewService {
                 totalScore += ((Number) s).doubleValue();
             }
         }
-        double avgScore = evals.isEmpty() ? 85.0 : Math.round((totalScore / evals.size()) * 10.0) / 10.0;
+        double avgScore = evals.isEmpty() ? 0.0 : Math.round((totalScore / evals.size()) * 10.0) / 10.0;
 
         Map<String, Object> summary = new HashMap<>();
         summary.put("session_id", sessionId);

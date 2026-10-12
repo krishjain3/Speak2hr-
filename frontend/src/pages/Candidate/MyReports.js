@@ -35,22 +35,57 @@ import {
 import { interviewAPI, candidatesAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
-// Helper functions for localStorage
+// Helper functions for localStorage and score normalization
+const normalizeScore = (score) => {
+  if (score === null || score === undefined || isNaN(score)) return 0;
+  const num = parseFloat(score);
+  // If previously saved as 8500 (multiplied twice), divide by 100
+  if (num > 100.0) return Math.min(100, Math.round(num / 100));
+  // If between 0 and 1.0 (e.g. 0.85), convert to percentage
+  if (num > 0 && num <= 1.0) return Math.min(100, Math.round(num * 100));
+  return Math.min(100, Math.max(0, Math.round(num)));
+};
+
+const getRating = (score) => {
+  const normalized = normalizeScore(score);
+  if (normalized >= 85) return 'Excellent';
+  if (normalized >= 70) return 'Good';
+  if (normalized >= 50) return 'Average';
+  return 'Needs Improvement';
+};
+
 const getStoredReports = () => {
   try {
     const data = localStorage.getItem('interview_reports');
-    return data ? JSON.parse(data) : [];
+    const list = data ? JSON.parse(data) : [];
+    return list.map(r => ({
+      ...r,
+      overallScore: normalizeScore(r.overallScore),
+      technicalScore: normalizeScore(r.technicalScore),
+      communicationScore: normalizeScore(r.communicationScore),
+      behavioralScore: normalizeScore(r.behavioralScore),
+      emotionScore: normalizeScore(r.emotionScore),
+      rating: getRating(r.overallScore),
+    }));
   } catch {
     return [];
   }
 };
 
 const saveReport = (report) => {
+  const normalizedReport = {
+    ...report,
+    overallScore: normalizeScore(report.overallScore),
+    technicalScore: normalizeScore(report.technicalScore),
+    communicationScore: normalizeScore(report.communicationScore),
+    behavioralScore: normalizeScore(report.behavioralScore),
+    emotionScore: normalizeScore(report.emotionScore),
+    rating: getRating(report.overallScore),
+  };
   const reports = getStoredReports();
-  // Check if report already exists
-  const exists = reports.find(r => r.sessionId === report.sessionId);
+  const exists = reports.find(r => r.sessionId === normalizedReport.sessionId);
   if (!exists) {
-    reports.unshift(report); // Add to beginning
+    reports.unshift(normalizedReport);
     localStorage.setItem('interview_reports', JSON.stringify(reports));
   }
   return reports;
@@ -103,16 +138,16 @@ function MyReports() {
             sessionId: location.state.sessionId,
             date: new Date().toISOString().split('T')[0],
             type: 'AI Interview',
-            overallScore: Math.round((summary.overall_score || summary.average_score || 0) * 100),
-            technicalScore: Math.round((summary.technical_score || summary.average_technical || 0) * 100),
-            communicationScore: Math.round((summary.communication_score || summary.average_clarity || 0) * 100),
-            behavioralScore: Math.round((summary.behavioral_score || summary.average_relevance || 0) * 100),
-            emotionScore: Math.round((summary.emotion_score || summary.average_confidence || 0) * 100),
-            rating: getRating(summary.overall_score || summary.average_score || 0),
-            questionsAnswered: summary.total_questions || 8,
+            overallScore: normalizeScore(summary.overall_score ?? summary.average_score ?? 0),
+            technicalScore: normalizeScore(summary.technical_score ?? summary.average_technical ?? 0),
+            communicationScore: normalizeScore(summary.communication_score ?? summary.average_clarity ?? 0),
+            behavioralScore: normalizeScore(summary.behavioral_score ?? summary.average_relevance ?? 0),
+            emotionScore: normalizeScore(summary.emotion_score ?? summary.average_confidence ?? 0),
+            rating: getRating(summary.overall_score ?? summary.average_score ?? 0),
+            questionsAnswered: summary.total_questions || summary.questions_answered || 5,
             status: 'completed',
             evaluations: summary.evaluations || [],
-            feedback: summary.feedback || '',
+            feedback: summary.feedback || summary.recommendation || '',
           };
           finalReports = [newReport, ...fetchedReports];
           setSelectedReport(newReport);
@@ -120,7 +155,7 @@ function MyReports() {
         }
       }
       
-      setReports(finalReports);
+      setReports(finalReports.map(r => ({ ...r, overallScore: normalizeScore(r.overallScore) })));
       setWeeklyReports(calculateWeeklySummary(finalReports));
     } catch (err) {
       console.error('Failed to load reports from backend:', err);
@@ -132,22 +167,22 @@ function MyReports() {
           sessionId: location.state.sessionId,
           date: new Date().toISOString().split('T')[0],
           type: 'AI Interview',
-          overallScore: Math.round((summary.overall_score || summary.average_score || 0) * 100),
-          technicalScore: Math.round((summary.technical_score || summary.average_technical || 0) * 100),
-          communicationScore: Math.round((summary.communication_score || summary.average_clarity || 0) * 100),
-          behavioralScore: Math.round((summary.behavioral_score || summary.average_relevance || 0) * 100),
-          emotionScore: Math.round((summary.emotion_score || summary.average_confidence || 0) * 100),
-          rating: getRating(summary.overall_score || summary.average_score || 0),
-          questionsAnswered: summary.total_questions || 8,
+          overallScore: normalizeScore(summary.overall_score ?? summary.average_score ?? 0),
+          technicalScore: normalizeScore(summary.technical_score ?? summary.average_technical ?? 0),
+          communicationScore: normalizeScore(summary.communication_score ?? summary.average_clarity ?? 0),
+          behavioralScore: normalizeScore(summary.behavioral_score ?? summary.average_relevance ?? 0),
+          emotionScore: normalizeScore(summary.emotion_score ?? summary.average_confidence ?? 0),
+          rating: getRating(summary.overall_score ?? summary.average_score ?? 0),
+          questionsAnswered: summary.total_questions || summary.questions_answered || 5,
           status: 'completed',
           evaluations: summary.evaluations || [],
-          feedback: summary.feedback || '',
+          feedback: summary.feedback || summary.recommendation || '',
         };
         storedReports = saveReport(newReport);
         setSelectedReport(newReport);
         setDetailsOpen(true);
       }
-      setReports(storedReports);
+      setReports(storedReports.map(r => ({ ...r, overallScore: normalizeScore(r.overallScore) })));
       setWeeklyReports(calculateWeeklySummary(storedReports));
     } finally {
       setLoading(false);

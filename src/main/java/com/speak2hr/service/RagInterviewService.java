@@ -115,23 +115,33 @@ public class RagInterviewService {
                 (session != null ? (String) session.get("candidate_id") : "default_candidate");
 
         Map<String, Object> evalResult;
-        String prompt = "You are an expert technical interviewer evaluating a candidate's answer.\n" +
-                "Question: " + question + "\n" +
-                "Candidate Answer: " + userAnswer + "\n" +
-                (request.getCode_submission() != null && !request.getCode_submission().isBlank() ? "Code Submission:\n" + request.getCode_submission() + "\n" : "") +
-                "Evaluate the answer and return a strict JSON object with fields:\n" +
-                "overall_score (number 0-100), technical_score (number 0-100), reasoning_depth (number 0-100), " +
-                "clarity (number 0-100), relevance (number 0-100), feedback (string), " +
-                "strengths (array of strings), improvements (array of strings), keywords_matched (array of strings), " +
-                "grounded_in_resume (boolean true).\n";
-
-        try {
-            String aiRaw = geminiService.generateContent(prompt);
-            String jsonStr = geminiService.extractJsonFromResponse(aiRaw);
-            evalResult = objectMapper.readValue(jsonStr, new TypeReference<Map<String, Object>>() {});
-        } catch (Exception e) {
-            logger.warn("Evaluation fallback for session {}: {}", sessionId, e.getMessage());
+        String trimmedAns = userAnswer.trim();
+        String lowerAns = trimmedAns.toLowerCase();
+        if (trimmedAns.isEmpty() || lowerAns.startsWith("skip")
+                || lowerAns.contains("don't know") || lowerAns.contains("dont know")
+                || lowerAns.equals("n/a") || lowerAns.equals("none")) {
             evalResult = heuristicEvaluator(userAnswer, request.getExpected_keywords(), request.getCode_submission());
+        } else {
+            String prompt = "You are an expert technical interviewer evaluating a candidate's answer.\n" +
+                    "Question: " + question + "\n" +
+                    "Candidate Answer: " + userAnswer + "\n" +
+                    (request.getCode_submission() != null && !request.getCode_submission().isBlank() ? "Code Submission:\n" + request.getCode_submission() + "\n" : "") +
+                    "Evaluate the answer strictly based on technical accuracy, depth, and relevance.\n" +
+                    "If the answer is gibberish, irrelevant, or minimal, assign appropriate low scores (0-20).\n" +
+                    "Return a strict JSON object with fields:\n" +
+                    "overall_score (number 0-100), technical_score (number 0-100), reasoning_depth (number 0-100), " +
+                    "clarity (number 0-100), relevance (number 0-100), feedback (string), " +
+                    "strengths (array of strings), improvements (array of strings), keywords_matched (array of strings), " +
+                    "grounded_in_resume (boolean true).\n";
+
+            try {
+                String aiRaw = geminiService.generateContent(prompt);
+                String jsonStr = geminiService.extractJsonFromResponse(aiRaw);
+                evalResult = objectMapper.readValue(jsonStr, new TypeReference<Map<String, Object>>() {});
+            } catch (Exception e) {
+                logger.warn("Evaluation fallback for session {}: {}", sessionId, e.getMessage());
+                evalResult = heuristicEvaluator(userAnswer, request.getExpected_keywords(), request.getCode_submission());
+            }
         }
 
         evalResult.put("session_id", sessionId);
@@ -140,6 +150,15 @@ public class RagInterviewService {
         evalResult.put("user_answer", userAnswer);
         evalResult.put("candidate_id", candidateId);
         evalResult.put("grounded_in_resume", true);
+
+        // Map scores object for frontend compatibility
+        Map<String, Object> scoresMap = new HashMap<>();
+        scoresMap.put("overall", toDouble(evalResult.get("overall_score"), 0.0) / 100.0);
+        scoresMap.put("technical_accuracy", toDouble(evalResult.get("technical_score"), 0.0) / 100.0);
+        scoresMap.put("relevance", toDouble(evalResult.get("relevance"), 0.0) / 100.0);
+        scoresMap.put("clarity", toDouble(evalResult.get("clarity"), 0.0) / 100.0);
+        scoresMap.put("reasoning", toDouble(evalResult.get("reasoning_depth"), 0.0) / 100.0);
+        evalResult.put("scores", scoresMap);
 
         sessionEvaluations.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(evalResult);
 
@@ -164,28 +183,47 @@ public class RagInterviewService {
         Map<String, Object> session = ragSessions.get(sessionId);
         List<Map<String, Object>> evals = sessionEvaluations.getOrDefault(sessionId, List.of());
 
+        if (evals.isEmpty()) {
+            Map<String, Object> emptyReport = new HashMap<>();
+            emptyReport.put("session_id", sessionId);
+            emptyReport.put("candidate_name", session != null ? session.getOrDefault("candidate_name", "Candidate") : "Candidate");
+            emptyReport.put("target_role", session != null ? session.getOrDefault("target_role", "Software Engineer") : "Software Engineer");
+            emptyReport.put("total_questions", session != null ? session.getOrDefault("total_questions", 0) : 0);
+            emptyReport.put("questions_answered", 0);
+            emptyReport.put("overall_score", 0.0);
+            emptyReport.put("technical_score", 0.0);
+            emptyReport.put("reasoning_score", 0.0);
+            emptyReport.put("clarity_score", 0.0);
+            emptyReport.put("evaluations", List.of());
+            emptyReport.put("performance_level", "Needs Review");
+            emptyReport.put("recommendation", "No answers were submitted for evaluation.");
+            emptyReport.put("status", "completed");
+            return emptyReport;
+        }
+
         double totalOverall = 0;
         double totalTech = 0;
         double totalReasoning = 0;
         double totalClarity = 0;
 
         for (Map<String, Object> ev : evals) {
-            totalOverall += toDouble(ev.get("overall_score"), 82.0);
-            totalTech += toDouble(ev.get("technical_score"), 84.0);
-            totalReasoning += toDouble(ev.get("reasoning_depth"), 80.0);
-            totalClarity += toDouble(ev.get("clarity"), 85.0);
+            totalOverall += toDouble(ev.get("overall_score"), 0.0);
+            totalTech += toDouble(ev.get("technical_score"), 0.0);
+            totalReasoning += toDouble(ev.get("reasoning_depth"), 0.0);
+            totalClarity += toDouble(ev.get("clarity"), 0.0);
         }
 
-        int count = evals.isEmpty() ? 1 : evals.size();
+        int count = evals.size();
         double avgOverall = Math.round((totalOverall / count) * 10.0) / 10.0;
         double avgTech = Math.round((totalTech / count) * 10.0) / 10.0;
         double avgReasoning = Math.round((totalReasoning / count) * 10.0) / 10.0;
         double avgClarity = Math.round((totalClarity / count) * 10.0) / 10.0;
 
-        String performanceLevel = avgOverall >= 85.0 ? "Strong Pass" : (avgOverall >= 70.0 ? "Pass" : "Needs Review");
-        String recommendation = avgOverall >= 80.0 ?
-                "Candidate demonstrated exceptional technical depth grounded in practical engineering projects. Highly recommended for progression." :
-                "Candidate met core engineering standards with room for deeper architectural elaboration.";
+        String performanceLevel = avgOverall >= 85.0 ? "Strong Pass" : (avgOverall >= 60.0 ? "Pass" : "Needs Review");
+        String recommendation = avgOverall >= 75.0 ?
+                "Candidate demonstrated solid technical problem-solving capabilities grounded in project experience." :
+                (avgOverall >= 50.0 ? "Candidate demonstrated basic technical concepts with room for deeper architectural elaboration." :
+                "Candidate performance needs improvement. Review technical foundations and project implementation details.");
 
         Map<String, Object> report = new HashMap<>();
         report.put("session_id", sessionId);
@@ -316,10 +354,41 @@ public class RagInterviewService {
 
     private Map<String, Object> heuristicEvaluator(String userAnswer, Object expectedKeywordsObj, String codeSubmission) {
         Map<String, Object> eval = new HashMap<>();
-        int wordCount = userAnswer != null ? userAnswer.trim().split("\\s+").length : 0;
+        String trimmed = userAnswer != null ? userAnswer.trim() : "";
         boolean hasCode = codeSubmission != null && !codeSubmission.isBlank();
 
-        double baseScore = 75.0;
+        // 1. If candidate did not write anything or skipped
+        String lower = trimmed.toLowerCase();
+        if (trimmed.isEmpty() || lower.startsWith("skip") || lower.contains("don't know") || lower.contains("dont know") || lower.equals("n/a") || lower.equals("none")) {
+            eval.put("overall_score", 0.0);
+            eval.put("technical_score", 0.0);
+            eval.put("reasoning_depth", 0.0);
+            eval.put("clarity", 0.0);
+            eval.put("relevance", 0.0);
+            eval.put("feedback", "No answer provided. Question was skipped or left blank.");
+            eval.put("strengths", List.of());
+            eval.put("improvements", List.of("Attempt technical questions with architectural or design concepts even if unsure."));
+            eval.put("keywords_matched", List.of());
+            return eval;
+        }
+
+        // 2. If answer is extremely short or placeholder
+        int wordCount = trimmed.split("\\s+").length;
+        if (wordCount < 3 && !hasCode) {
+            eval.put("overall_score", 15.0);
+            eval.put("technical_score", 15.0);
+            eval.put("reasoning_depth", 10.0);
+            eval.put("clarity", 20.0);
+            eval.put("relevance", 20.0);
+            eval.put("feedback", "Answer is too brief to demonstrate technical depth or implementation capability.");
+            eval.put("strengths", List.of());
+            eval.put("improvements", List.of("Provide a detailed technical explanation with architectural and implementation details."));
+            eval.put("keywords_matched", List.of());
+            return eval;
+        }
+
+        double baseScore = 65.0;
+        if (wordCount > 15) baseScore += 10.0;
         if (wordCount > 40) baseScore += 10.0;
         if (wordCount > 80) baseScore += 5.0;
         if (hasCode) baseScore += 5.0;
@@ -327,9 +396,9 @@ public class RagInterviewService {
 
         List<String> matched = new ArrayList<>();
         if (expectedKeywordsObj instanceof List) {
-            String lower = (userAnswer + " " + (codeSubmission != null ? codeSubmission : "")).toLowerCase();
+            String combinedLower = (trimmed + " " + (codeSubmission != null ? codeSubmission : "")).toLowerCase();
             for (Object k : (List<?>) expectedKeywordsObj) {
-                if (k != null && lower.contains(k.toString().toLowerCase())) {
+                if (k != null && combinedLower.contains(k.toString().toLowerCase())) {
                     matched.add(k.toString());
                 }
             }
@@ -338,10 +407,10 @@ public class RagInterviewService {
 
         eval.put("overall_score", baseScore);
         eval.put("technical_score", baseScore + 2.0 > 100.0 ? 100.0 : baseScore + 2.0);
-        eval.put("reasoning_depth", baseScore - 2.0);
-        eval.put("clarity", 86.0);
-        eval.put("relevance", 88.0);
-        eval.put("feedback", "Candidate provided a clear and structured technical explanation with practical engineering depth.");
+        eval.put("reasoning_depth", Math.max(0.0, baseScore - 2.0));
+        eval.put("clarity", 84.0);
+        eval.put("relevance", 85.0);
+        eval.put("feedback", "Candidate provided a structured technical explanation with practical engineering reasoning.");
         eval.put("strengths", List.of("Direct answer to question", "Articulated architectural decisions clearly"));
         eval.put("improvements", List.of("Elaborate further on trade-offs and edge failure modes"));
         eval.put("keywords_matched", matched);
