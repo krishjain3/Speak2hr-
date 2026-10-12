@@ -56,9 +56,24 @@ public class RagResumeService {
                 ((List<?>) profile.getOrDefault("projects", List.of())).size(),
                 ((List<?>) profile.getOrDefault("skills", List.of())).size());
 
+        String resumeId = "res_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        profile.put("resume_id", resumeId);
+
+        List<String> projectNames = new ArrayList<>();
+        List<?> rawProjects = (List<?>) profile.getOrDefault("projects", List.of());
+        for (Object p : rawProjects) {
+            if (p instanceof Map) {
+                Object name = ((Map<?, ?>) p).get("name");
+                if (name != null) projectNames.add(name.toString());
+            } else if (p != null) {
+                projectNames.add(p.toString());
+            }
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Resume processed and indexed successfully into RAG vector engine");
+        response.put("resume_id", resumeId);
         response.put("candidate_id", candidateId);
         response.put("filename", filename);
         response.put("candidate_name", profile.get("candidate_name"));
@@ -66,7 +81,9 @@ public class RagResumeService {
         response.put("experience_years", profile.get("experience_years"));
         response.put("skills", profile.get("skills"));
         response.put("projects", profile.get("projects"));
+        response.put("detected_projects", projectNames);
         response.put("total_chunks", chunks.size());
+        response.put("chunks_count", chunks.size());
         response.put("sections_found", profile.get("sections_found"));
 
         return response;
@@ -76,6 +93,11 @@ public class RagResumeService {
         if (candidateProfiles.containsKey(candidateId)) {
             Map<String, Object> p = new HashMap<>(candidateProfiles.get(candidateId));
             p.put("has_indexed_resume", true);
+            p.put("resumes", List.of(Map.of(
+                    "resume_id", p.getOrDefault("resume_id", "res_" + candidateId),
+                    "filename", p.getOrDefault("filename", "resume.pdf"),
+                    "chunks_count", p.getOrDefault("total_chunks", 1)
+            )));
             return p;
         }
 
@@ -89,8 +111,10 @@ public class RagResumeService {
         fallback.put("target_role", "Software Engineer");
         fallback.put("experience_years", 3.0);
         fallback.put("total_chunks", 0);
+        fallback.put("chunks_count", 0);
         fallback.put("sections", List.of("Skills", "Experience", "Education"));
         fallback.put("has_indexed_resume", false);
+        fallback.put("resumes", List.of());
         return fallback;
     }
 

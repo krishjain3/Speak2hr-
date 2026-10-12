@@ -53,14 +53,6 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard', label: 'Senior / Staff (Deep Systems, Scalability & Failures)' },
 ];
 
-const FOCUS_OPTIONS = [
-  'Full Technical & Project Defense',
-  'Backend Architecture & Data Stores',
-  'AI/ML Systems & Vector Pipelines',
-  'Distributed Systems & Concurrency',
-  'End-to-End Product Engineering',
-];
-
 function InterviewSelection() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -168,9 +160,15 @@ function InterviewSelection() {
       const response = await resumeRagAPI.uploadResume(file, user?.id || 'candidate_user');
       setRagData(response.data);
       setSelectedExistingResumeId(response.data.resume_id);
+      if (response.data.target_role) {
+        setRagConfig(prev => ({ ...prev, role: response.data.target_role }));
+      }
     } catch (err) {
       console.error('RAG resume upload failed:', err);
-      const detail = err.response?.data?.detail || 'Failed to process resume. Please ensure it is a valid text-searchable PDF or DOCX file.';
+      let detail = err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error;
+      if (!detail || detail === 'Not Found' || err.response?.status === 404) {
+        detail = 'Cannot connect to backend service. Please verify that the Java Spring Boot backend is running at http://localhost:8000.';
+      }
       setRagError(detail);
     } finally {
       setRagLoading(false);
@@ -180,22 +178,23 @@ function InterviewSelection() {
   const handleStartRagInterview = async () => {
     const resumeId = ragData?.resume_id || selectedExistingResumeId;
     if (!resumeId) {
-      setRagError('Please upload or select a resume first.');
+      setRagError('Please upload your resume first.');
       return;
     }
 
     setRagGenerating(true);
     setRagError('');
     try {
+      const targetRole = ragData?.target_role || ragConfig.role || user?.targetRole || 'Full-Stack Developer';
       const response = await resumeRagAPI.generateQuestions({
         candidateId: user?.id || 'candidate_user',
         resumeId: resumeId,
-        role: ragConfig.role || 'Software Engineer',
-        candidateName: user?.name || 'Candidate',
+        role: targetRole,
+        candidateName: user?.name || ragData?.candidate_name || 'Candidate',
         candidateEmail: user?.email || '',
         numQuestions: parseInt(ragConfig.numQuestions) || 10,
         difficulty: ragConfig.difficulty,
-        focusArea: ragConfig.focusArea,
+        focusArea: 'Full Technical & Project Defense',
       });
 
       setRagDialogOpen(false);
@@ -204,14 +203,17 @@ function InterviewSelection() {
           isRag: true,
           ragSessionId: response.data.session_id,
           questions: response.data.questions,
-          role: ragConfig.role,
+          role: targetRole,
           answerMode: ragConfig.answerMode,
           resumeData: ragData,
         },
       });
     } catch (err) {
       console.error('Failed to generate RAG questions:', err);
-      const detail = err.response?.data?.detail || 'Failed to generate questions. Please ensure your Gemini API key is configured.';
+      let detail = err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error;
+      if (!detail || detail === 'Not Found' || err.response?.status === 404) {
+        detail = 'Failed to generate interview questions. Please verify that the Java Spring Boot backend is running at http://localhost:8000.';
+      }
       setRagError(detail);
     } finally {
       setRagGenerating(false);
@@ -576,25 +578,13 @@ function InterviewSelection() {
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Interview Configuration Section */}
+          {/* Interview Configuration Section - exactly the requested parameters */}
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-            2. Configure Technical Interview Parameters
+            2. Configure Interview Parameters
           </Typography>
 
           <Grid container spacing={2}>
-            {/* Target Role */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Target Engineering Role"
-                value={ragConfig.role}
-                onChange={(e) => setRagConfig({ ...ragConfig, role: e.target.value })}
-                placeholder="e.g. Senior Backend Engineer"
-                disabled={ragGenerating}
-              />
-            </Grid>
-
-            {/* Question Count */}
+            {/* Number of Questions */}
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Number of Questions</InputLabel>
@@ -604,6 +594,7 @@ function InterviewSelection() {
                   onChange={(e) => setRagConfig({ ...ragConfig, numQuestions: e.target.value })}
                   disabled={ragGenerating}
                 >
+                  <MenuItem value={5}>5 Questions (Quick Technical Screen)</MenuItem>
                   <MenuItem value={6}>6 Questions (Quick Technical Screen)</MenuItem>
                   <MenuItem value={8}>8 Questions (Standard Round)</MenuItem>
                   <MenuItem value={10}>10 Questions (Complete Technical Defense - Default)</MenuItem>
@@ -612,7 +603,7 @@ function InterviewSelection() {
               </FormControl>
             </Grid>
 
-            {/* Difficulty Level */}
+            {/* Experience / Difficulty Level */}
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Experience / Difficulty Level</InputLabel>
@@ -631,26 +622,7 @@ function InterviewSelection() {
               </FormControl>
             </Grid>
 
-            {/* Focus Area */}
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Technical Focus Area</InputLabel>
-                <Select
-                  value={ragConfig.focusArea}
-                  label="Technical Focus Area"
-                  onChange={(e) => setRagConfig({ ...ragConfig, focusArea: e.target.value })}
-                  disabled={ragGenerating}
-                >
-                  {FOCUS_OPTIONS.map((opt) => (
-                    <MenuItem key={opt} value={opt}>
-                      {opt}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Response Mode: Video or Written Text */}
+            {/* Response Mode: Spoken or Written */}
             <Grid item xs={12}>
               <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                 <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
