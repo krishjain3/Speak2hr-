@@ -32,6 +32,7 @@ public class GeminiService {
     private String modelName;
 
     public GeminiService(
+            @Value("${gemini.api.key:}") String primaryKey,
             @Value("${gemini.api.key.1:}") String key1,
             @Value("${gemini.api.key.2:}") String key2,
             @Value("${gemini.api.key.3:}") String key3,
@@ -41,11 +42,43 @@ public class GeminiService {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
 
-        if (key1 != null && !key1.isBlank()) apiKeys.add(key1);
-        if (key2 != null && !key2.isBlank()) apiKeys.add(key2);
-        if (key3 != null && !key3.isBlank()) apiKeys.add(key3);
-        if (key4 != null && !key4.isBlank()) apiKeys.add(key4);
-        if (key5 != null && !key5.isBlank()) apiKeys.add(key5);
+        if (primaryKey != null && !primaryKey.isBlank()) apiKeys.add(primaryKey);
+        if (key1 != null && !key1.isBlank() && !apiKeys.contains(key1)) apiKeys.add(key1);
+        if (key2 != null && !key2.isBlank() && !apiKeys.contains(key2)) apiKeys.add(key2);
+        if (key3 != null && !key3.isBlank() && !apiKeys.contains(key3)) apiKeys.add(key3);
+        if (key4 != null && !key4.isBlank() && !apiKeys.contains(key4)) apiKeys.add(key4);
+        if (key5 != null && !key5.isBlank() && !apiKeys.contains(key5)) apiKeys.add(key5);
+
+        String envKey = System.getenv("GEMINI_API_KEY");
+        if (envKey != null && !envKey.isBlank() && !apiKeys.contains(envKey)) {
+            apiKeys.add(envKey);
+        }
+
+        // Try reading .env file if still empty
+        if (apiKeys.isEmpty()) {
+            loadKeyFromEnvFile(".env");
+            loadKeyFromEnvFile("ML/.env");
+        }
+    }
+
+    private void loadKeyFromEnvFile(String path) {
+        try {
+            java.io.File file = new java.io.File(path);
+            if (file.exists()) {
+                for (String line : java.nio.file.Files.readAllLines(file.toPath())) {
+                    line = line.trim();
+                    if (line.startsWith("GEMINI_API_KEY=") || line.startsWith("GEMINI_API_KEY_1=")) {
+                        String val = line.substring(line.indexOf('=') + 1).trim();
+                        if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
+                            val = val.substring(1, val.length() - 1);
+                        }
+                        if (!val.isBlank() && !apiKeys.contains(val)) {
+                            apiKeys.add(val);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     public String generateContent(String prompt) {

@@ -39,13 +39,18 @@ The backend is built using **Java** and **Spring Boot 3.x**, communicating with 
 
 ---
 
-## 🤖 AI Features
+## 🤖 AI & RAG Features
 
-- Google Gemini 2.0 Flash Integration
-- Dynamic Role-Specific Question Generation
-- Question Bank Architecture for Offline Fallbacks
-- Intelligent Answer Evaluation (Technical Accuracy, Communication, Clarity, Completeness)
-- Resume & Job Description Skill Gap Analysis
+- **Google Gemini 2.0 Flash Integration** with multi-key failover and offline fallback
+- **Resume-Grounded RAG Pipeline**:
+  - Section-aware PDF, DOCX, and text resume extraction
+  - Local vector semantic indexing and similarity retrieval
+  - Anti-hallucination guardrails: every question strictly anchored in candidate's verified projects & experience
+  - Dual answer evaluation modes: spoken audio/video transcript analysis and written technical text / code submission
+  - Multi-dimensional scoring: Technical Accuracy, Reasoning Depth, Relevance, Clarity, Strengths, and Targeted Improvements
+- **Dynamic Role-Specific Question Generation** with adjustable difficulty, question counts, and focus topics
+- **Question Bank Architecture** for offline resilience
+- **Resume & Job Description Skill Gap Analysis** with automated learning roadmaps
 
 ---
 
@@ -57,10 +62,10 @@ React Frontend (Port 3000)
        ▼
 Spring Boot REST API (Port 8000)
        │
- ┌─────┴────────────────┐
- │                      │
- ▼                      ▼
-Spring Data MongoDB     Google Gemini 2.0 Flash
+ ┌─────┼────────────────────────┬─────────────────────┐
+ │     │                        │                     │
+ ▼     ▼                        ▼                     ▼
+Spring Data MongoDB     Gemini 2.0 Flash    RAG Vector Engine    PDF & Document Engine
 ```
 
 ---
@@ -123,14 +128,19 @@ Speak2HR
 │   ├── main/
 │   │   ├── java/com/speak2hr/
 │   │   │   ├── config/          # Security, Database Seeder, CORS
-│   │   │   ├── controller/      # REST API Controllers (@RestController)
+│   │   │   ├── controller/      # REST API Controllers (Admin, Auth, Candidate, RAG, Interview)
 │   │   │   ├── dto/             # Data Transfer Objects
-│   │   │   ├── model/           # Mongo Document Entities (@Document)
-│   │   │   ├── repository/     # Spring Data Repositories (@Repository)
-│   │   │   └── service/        # Business Logic & AI Services (@Service)
+│   │   │   ├── model/           # Mongo Document Entities
+│   │   │   ├── repository/     # Spring Data Repositories
+│   │   │   └── service/        # Business Logic, RAG Services, Gemini AI
 │   │   └── resources/
 │   │       └── application.properties
 │   └── test/
+│
+├── ML/                          # Python RAG Pipeline, Vector Engine & Test Suite
+│   ├── rag_pipeline.py         # Advanced Document Extraction, Chunking & RAG
+│   ├── test_rag_pipeline.py    # Unit tests for RAG engine
+│   └── test_api_endpoints.py   # Integration tests
 │
 ├── pom.xml
 ├── mvnw / mvnw.cmd
