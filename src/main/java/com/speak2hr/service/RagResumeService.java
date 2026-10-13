@@ -95,7 +95,14 @@ public class RagResumeService {
                     logger.info("Reusing existing resume {} for candidate {} (hash and embedding match)", existingDoc.getId(), candidateId);
                     return buildUploadResponse(existingDoc, existingChunks.size(), true);
                 } else {
-                    logger.info("Existing resume {} has outdated embeddings. Re-indexing...", existingDoc.getId());
+                    logger.info("Existing resume {} has outdated embeddings. Re-embedding existing chunks with {}...",
+                            existingDoc.getId(), embeddingEngine.getModelIdentifier());
+                    try {
+                        List<ResumeChunk> migrated = getChunksAndMigrateIfOutdated(existingDoc.getId(), candidateId);
+                        return buildUploadResponse(existingDoc, migrated.size(), true);
+                    } catch (Exception e) {
+                        logger.warn("Re-embedding existing chunks failed: {}. Re-indexing uploaded file...", e.getMessage());
+                    }
                 }
             }
         }
@@ -123,7 +130,7 @@ public class RagResumeService {
             rawChunks.add(new RawChunk(0, "general", "General", null, cleanedText, embeddingEngine.extractTechnologies(cleanedText)));
         }
 
-        // 4. Compute 768-dimensional dense vector embeddings
+        // 4. Compute dense vector embeddings
         List<ResumeChunk> persistentChunks = new ArrayList<>();
         for (RawChunk rc : rawChunks) {
             String chunkId = "chk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -142,6 +149,7 @@ public class RagResumeService {
                     embeddingEngine.getModelIdentifier(),
                     embeddingEngine.getModelVersion()
             );
+            chunk.setEmbeddingDim(embeddingEngine.getDimension());
             persistentChunks.add(chunk);
         }
 
@@ -151,6 +159,7 @@ public class RagResumeService {
         ResumeDocument doc = new ResumeDocument(resumeId, candidateId, filename, fileHash, cleanedText);
         doc.setEmbeddingModel(embeddingEngine.getModelIdentifier());
         doc.setEmbeddingVersion(embeddingEngine.getModelVersion());
+        doc.setEmbeddingDim(embeddingEngine.getDimension());
         doc.setCandidateName((String) profile.get("candidate_name"));
         doc.setTargetRole((String) profile.get("target_role"));
 
@@ -233,7 +242,96 @@ public class RagResumeService {
     }
 
     public List<ResumeChunk> getChunksForResume(String resumeId, String candidateId) {
-        return persistentStore.getChunks(resumeId, candidateId);
+        return getChunksAndMigrateIfOutdated(resumeId, candidateId);
+    }
+
+    /**
+     * Centralized, safe re-embedding migration for stored resume chunks.
+     * Detects incompatible model IDs or dimensions, generates new embeddings,
+     * and atomically saves only after all chunks succeed. Preserves original data on failure.
+     */
+    public synchronized List<ResumeChunk> getChunksAndMigrateIfOutdated(String resumeId, String candidateId) {
+        ResumeDocument doc = persistentStore.getResume(resumeId, candidateId);
+        if (doc == null) {
+            return Collections.emptyList();
+        }
+        List<ResumeChunk> chunks = persistentStore.getChunks(resumeId, candidateId);
+        if (chunks == null || chunks.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        ResumeChunk sample = chunks.get(0);
+        boolean isCompatible = embeddingEngine.isCompatible(
+                sample.getEmbeddingModel(),
+                sample.getEmbeddingVersion(),
+                sample.getEmbeddingDim() != null ? sample.getEmbeddingDim() : 0
+        );
+
+        if (isCompatible) {
+            return chunks;
+        }
+
+        logger.info("Migrating embeddings for resume {} (candidate {}): outdated model '{}/dim {}' -> '{}/dim {}'",
+                resumeId, candidateId, sample.getEmbeddingModel(), sample.getEmbeddingDim(),
+                embeddingEngine.getModelIdentifier(), embeddingEngine.getDimension());
+
+        try {
+            List<ResumeChunk> migratedChunks = new ArrayList<>();
+            for (ResumeChunk oldChunk : chunks) {
+                List<Double> newVec = embeddingEngine.embedText(oldChunk.getContent());
+                if (newVec == null || newVec.size() != embeddingEngine.getDimension()) {
+                    throw new EmbeddingException("Generated vector dimension " +
+                            (newVec != null ? newVec.size() : "null") +
+                            " does not match expected " + embeddingEngine.getDimension());
+                }
+                ResumeChunk migrated = new ResumeChunk(
+                        oldChunk.getId(),
+                        oldChunk.getResumeId(),
+                        oldChunk.getCandidateId(),
+                        oldChunk.getChunkIndex(),
+                        oldChunk.getCategory(),
+                        oldChunk.getHeading(),
+                        oldChunk.getProjectName(),
+                        oldChunk.getContent(),
+                        oldChunk.getTechnologies(),
+                        newVec,
+                        embeddingEngine.getModelIdentifier(),
+                        embeddingEngine.getModelVersion(),
+                        embeddingEngine.getDimension()
+                );
+                migratedChunks.add(migrated);
+            }
+
+            // Persist ONLY after all chunks succeeded
+            persistentStore.saveChunks(resumeId, migratedChunks);
+            doc.setEmbeddingModel(embeddingEngine.getModelIdentifier());
+            doc.setEmbeddingVersion(embeddingEngine.getModelVersion());
+            doc.setEmbeddingDim(embeddingEngine.getDimension());
+            persistentStore.saveResume(doc);
+
+            logger.info("Successfully re-embedded and migrated {} chunks for resume {}", migratedChunks.size(), resumeId);
+            return migratedChunks;
+        } catch (Exception e) {
+            logger.error("Failed to re-embed resume {} during migration: {}. Preserving original resume data.",
+                    resumeId, e.getMessage());
+            throw new EmbeddingException("Failed to migrate resume embeddings for '" + resumeId + "': " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Batch re-embeds all existing resumes in the persistent store if outdated.
+     */
+    public int reembedAllStoredResumes() {
+        int count = 0;
+        for (ResumeDocument doc : persistentStore.getAllResumes()) {
+            try {
+                getChunksAndMigrateIfOutdated(doc.getId(), doc.getCandidateId());
+                count++;
+            } catch (Exception e) {
+                logger.warn("Skipping resume {} during bulk re-embedding: {}", doc.getId(), e.getMessage());
+            }
+        }
+        return count;
     }
 
     public ResumeDocument getResumeById(String resumeId, String candidateId) {

@@ -40,13 +40,13 @@ public class ResumeChunk {
     private List<Double> embedding = new ArrayList<>();
 
     @JsonProperty("embedding_model")
-    private String embeddingModel = "gemini-text-embedding-004";
+    private String embeddingModel = "gemini-embedding-2";
 
     @JsonProperty("embedding_version")
-    private String embeddingVersion = "1.0";
+    private String embeddingVersion = "2.0";
 
     @JsonProperty("embedding_dim")
-    private Integer embeddingDim = 768;
+    private Integer embeddingDim = 3072;
 
     @JsonProperty("created_at")
     private String createdAt = Instant.now().toString();
@@ -65,7 +65,7 @@ public class ResumeChunk {
         this.content = content;
         this.technologies = technologies != null ? technologies : new ArrayList<>();
         this.embedding = embedding != null ? embedding : new ArrayList<>();
-        this.embeddingDim = this.embedding.size();
+        this.embeddingDim = this.embedding.size() > 0 ? this.embedding.size() : 3072;
         this.createdAt = Instant.now().toString();
     }
 
@@ -73,6 +73,15 @@ public class ResumeChunk {
                        String category, String heading, String projectName, String content,
                        List<String> technologies, List<Double> embedding,
                        String embeddingModel, String embeddingVersion) {
+        this(id, resumeId, candidateId, chunkIndex, category, heading, projectName, content,
+                technologies, embedding, embeddingModel, embeddingVersion,
+                embedding != null && !embedding.isEmpty() ? embedding.size() : 3072);
+    }
+
+    public ResumeChunk(String id, String resumeId, String candidateId, Integer chunkIndex,
+                       String category, String heading, String projectName, String content,
+                       List<String> technologies, List<Double> embedding,
+                       String embeddingModel, String embeddingVersion, Integer embeddingDim) {
         this.id = id;
         this.resumeId = resumeId;
         this.candidateId = candidateId;
@@ -85,7 +94,7 @@ public class ResumeChunk {
         this.embedding = embedding != null ? embedding : new ArrayList<>();
         this.embeddingModel = embeddingModel;
         this.embeddingVersion = embeddingVersion;
-        this.embeddingDim = this.embedding.size();
+        this.embeddingDim = embeddingDim != null ? embeddingDim : (this.embedding.size() > 0 ? this.embedding.size() : 3072);
         this.createdAt = Instant.now().toString();
     }
 

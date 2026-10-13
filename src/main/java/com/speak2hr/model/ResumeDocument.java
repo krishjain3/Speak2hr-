@@ -49,10 +49,13 @@ public class ResumeDocument {
     private Integer totalChunks = 0;
 
     @JsonProperty("embedding_model")
-    private String embeddingModel = "gemini-text-embedding-004";
+    private String embeddingModel = "gemini-embedding-2";
 
     @JsonProperty("embedding_version")
-    private String embeddingVersion = "1.0";
+    private String embeddingVersion = "2.0";
+
+    @JsonProperty("embedding_dim")
+    private Integer embeddingDim = 3072;
 
     @JsonProperty("created_at")
     private String createdAt = Instant.now().toString();
@@ -109,6 +112,9 @@ public class ResumeDocument {
 
     public String getEmbeddingVersion() { return embeddingVersion; }
     public void setEmbeddingVersion(String embeddingVersion) { this.embeddingVersion = embeddingVersion; }
+
+    public Integer getEmbeddingDim() { return embeddingDim; }
+    public void setEmbeddingDim(Integer embeddingDim) { this.embeddingDim = embeddingDim; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

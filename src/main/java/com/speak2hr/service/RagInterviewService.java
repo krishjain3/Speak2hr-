@@ -111,37 +111,13 @@ public class RagInterviewService {
         String difficulty = request.getDifficulty() != null ? request.getDifficulty().trim() : "medium";
         int numQuestions = request.getNum_questions() != null && request.getNum_questions() > 0 ? request.getNum_questions() : 10;
 
-        // 2. Retrieve candidate chunks and vector embeddings
-        List<ResumeChunk> allChunks = persistentStore.getChunks(resumeId, candidateId);
+        // 2. Retrieve candidate chunks and vector embeddings (auto-migrating if outdated)
+        List<ResumeChunk> allChunks = ragResumeService.getChunksAndMigrateIfOutdated(resumeId, candidateId);
         if (allChunks.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Resume '" + resumeId + "' contains no indexed chunks. Please re-upload your resume."
             );
-        }
-
-        // 2b. Check embedding model compatibility; re-embed if incompatible or outdated
-        ResumeChunk sampleChunk = allChunks.get(0);
-        if (!embeddingEngine.isCompatible(
-                sampleChunk.getEmbeddingModel(),
-                sampleChunk.getEmbeddingVersion(),
-                sampleChunk.getEmbeddingDim() != null ? sampleChunk.getEmbeddingDim() : 0)) {
-            logger.info("Chunks for resume {} have outdated embeddings ({}/{}). Re-indexing with {}...",
-                    resumeId, sampleChunk.getEmbeddingModel(), sampleChunk.getEmbeddingDim(), embeddingEngine.getModelIdentifier());
-            List<ResumeChunk> reEmbedded = new ArrayList<>();
-            for (ResumeChunk c : allChunks) {
-                List<Double> newVec = embeddingEngine.embedText(c.getContent());
-                c.setEmbedding(newVec);
-                c.setEmbeddingModel(embeddingEngine.getModelIdentifier());
-                c.setEmbeddingVersion(embeddingEngine.getModelVersion());
-                c.setEmbeddingDim(embeddingEngine.getDimension());
-                reEmbedded.add(c);
-            }
-            persistentStore.saveChunks(resumeId, reEmbedded);
-            allChunks = reEmbedded;
-            resumeDoc.setEmbeddingModel(embeddingEngine.getModelIdentifier());
-            resumeDoc.setEmbeddingVersion(embeddingEngine.getModelVersion());
-            persistentStore.saveResume(resumeDoc);
         }
 
         // 3. Targeted Multi-Query Semantic Retrieval from actual resume facts

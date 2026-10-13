@@ -262,6 +262,10 @@ public class RagPersistentStore {
         }
     }
 
+    public List<ResumeDocument> getAllResumes() {
+        return new ArrayList<>(resumes.values());
+    }
+
     // ------------------------------------------------------------------------
     // Disk Serialization & Deserialization
     // ------------------------------------------------------------------------

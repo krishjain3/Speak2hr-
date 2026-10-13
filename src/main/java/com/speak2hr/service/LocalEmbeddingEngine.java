@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
 
 /**
  * Production Semantic Embedding Engine implementing standard SemanticEmbeddingService.
- * Uses Gemini pretrained text-embedding-004 (768-dimensional dense vectors),
- * enforces unit L2 normalization, cosine similarity, persistent in-memory LRU caching,
+ * Uses Gemini pretrained gemini-embedding-2 (3072-dimensional dense multimodal vectors),
+ * enforces unit L2 normalization, cosine similarity, persistent in-memory caching,
  * and explicit API exception handling without arbitrary token-hashing fallbacks.
  */
 @Component
@@ -30,16 +30,20 @@ public class LocalEmbeddingEngine implements SemanticEmbeddingService {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalEmbeddingEngine.class);
 
-    public static final int DIM = 768;
-    public static final String MODEL_ID = "gemini-text-embedding-004";
-    public static final String MODEL_VERSION = "1.0";
+    public static final int DEFAULT_DIM = 3072;
+    public static final int DIM = DEFAULT_DIM;
+    public static final String MODEL_ID = "gemini-embedding-2";
+    public static final String MODEL_VERSION = "2.0";
 
     private final GeminiService geminiService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.embedding.model:text-embedding-004}")
-    private String embeddingModelName;
+    @Value("${gemini.embedding.model:gemini-embedding-2}")
+    private String embeddingModelName = "gemini-embedding-2";
+
+    @Value("${gemini.embedding.dimension:3072}")
+    private int configuredDimension = DEFAULT_DIM;
 
     // In-memory embedding cache to avoid redundant API requests for identical passages/queries
     private final Map<String, List<Double>> vectorCache = new ConcurrentHashMap<>();
@@ -88,13 +92,18 @@ public class LocalEmbeddingEngine implements SemanticEmbeddingService {
 
     @Override
     public int getDimension() {
-        return DIM;
+        return configuredDimension > 0 ? configuredDimension : DEFAULT_DIM;
+    }
+
+    public void setConfiguredDimension(int dim) {
+        this.configuredDimension = dim;
     }
 
     @Override
     public List<Double> embedText(String text) {
+        int dim = getDimension();
         if (text == null || text.isBlank()) {
-            return Collections.nCopies(DIM, 0.0);
+            return Collections.nCopies(dim, 0.0);
         }
 
         String cacheKey = text.trim();
@@ -119,51 +128,88 @@ public class LocalEmbeddingEngine implements SemanticEmbeddingService {
             );
         }
 
+        String cleanModel = embeddingModelName.startsWith("models/")
+                ? embeddingModelName.substring(7)
+                : embeddingModelName;
+
         String lastError = "Unknown error";
         for (int i = 0; i < apiKeys.size(); i++) {
             String apiKey = apiKeys.get(i);
             try {
-                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + embeddingModelName + ":embedContent?key=" + apiKey;
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + cleanModel + ":embedContent?key=" + apiKey;
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
 
                 Map<String, Object> part = Map.of("text", text);
                 Map<String, Object> content = Map.of("parts", List.of(part));
-                Map<String, Object> requestBody = Map.of(
-                        "model", "models/" + embeddingModelName,
-                        "content", content
-                );
+                Map<String, Object> requestBody = new HashMap<>();
+                requestBody.put("model", "models/" + cleanModel);
+                requestBody.put("content", content);
+                requestBody.put("outputDimensionality", dim);
 
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
                 ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    JsonNode root = objectMapper.readTree(response.getBody());
-                    JsonNode valuesNode = root.path("embedding").path("values");
-                    if (valuesNode.isArray() && valuesNode.size() > 0) {
-                        List<Double> rawVec = new ArrayList<>(valuesNode.size());
-                        for (JsonNode val : valuesNode) {
-                            rawVec.add(val.asDouble());
-                        }
-
+                    List<Double> rawVec = parseEmbeddingResponse(response.getBody());
+                    if (!rawVec.isEmpty()) {
                         List<Double> normalized = normalizeVector(rawVec);
                         vectorCache.put(cacheKey, normalized);
                         return normalized;
                     }
+                    lastError = "Response returned empty or malformed embedding vector from Gemini API";
+                } else {
+                    lastError = "Gemini API returned status " + response.getStatusCode();
                 }
-                lastError = "Response returned empty embedding vector from Gemini API";
             } catch (HttpStatusCodeException e) {
-                lastError = "HTTP " + e.getStatusCode().value() + ": " + e.getResponseBodyAsString();
-                logger.warn("Embedding API key #{} failed with status {}: {}", i + 1, e.getStatusCode().value(), e.getMessage());
+                int status = e.getStatusCode().value();
+                String body = e.getResponseBodyAsString();
+                if (status == 400 || status == 401 || status == 403) {
+                    lastError = "Invalid or unauthorized Gemini API key (HTTP " + status + "): " + body;
+                } else if (status == 429) {
+                    lastError = "Gemini API rate limit or quota exceeded (HTTP 429): " + body;
+                } else {
+                    lastError = "Gemini API error (HTTP " + status + "): " + body;
+                }
+                logger.warn("Embedding API key #{} failed: {}", i + 1, lastError);
             } catch (Exception e) {
-                lastError = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                lastError = "Communication error with Gemini API: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
                 logger.warn("Embedding API key #{} failed: {}. Retrying with next key...", i + 1, lastError);
             }
         }
 
         logger.error("All Gemini API keys failed for embedding generation. Error: {}", lastError);
         throw new EmbeddingException("Gemini semantic embedding API failed: " + lastError);
+    }
+
+    /**
+     * Parses the JSON response from Gemini embedContent or batchEmbedContents endpoint.
+     */
+    public List<Double> parseEmbeddingResponse(String responseJson) {
+        if (responseJson == null || responseJson.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode valuesNode = root.path("embedding").path("values");
+            if (!valuesNode.isArray() || valuesNode.size() == 0) {
+                JsonNode embeddingsNode = root.path("embeddings");
+                if (embeddingsNode.isArray() && embeddingsNode.size() > 0) {
+                    valuesNode = embeddingsNode.get(0).path("values");
+                }
+            }
+            if (valuesNode.isArray() && valuesNode.size() > 0) {
+                List<Double> rawVec = new ArrayList<>(valuesNode.size());
+                for (JsonNode val : valuesNode) {
+                    rawVec.add(val.asDouble());
+                }
+                return rawVec;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse embedding response JSON: {}", e.getMessage());
+        }
+        return Collections.emptyList();
     }
 
     @Override
@@ -183,8 +229,9 @@ public class LocalEmbeddingEngine implements SemanticEmbeddingService {
      * Compute unit L2 normalized vector.
      */
     public List<Double> normalizeVector(List<Double> vec) {
+        int dim = getDimension();
         if (vec == null || vec.isEmpty()) {
-            return Collections.nCopies(DIM, 0.0);
+            return Collections.nCopies(dim, 0.0);
         }
 
         double sumSq = 0.0;
@@ -210,7 +257,19 @@ public class LocalEmbeddingEngine implements SemanticEmbeddingService {
 
     @Override
     public double cosineSimilarity(List<Double> v1, List<Double> v2) {
-        if (v1 == null || v2 == null || v1.isEmpty() || v2.isEmpty() || v1.size() != v2.size()) {
+        if (v1 == null || v2 == null || v1.isEmpty() || v2.isEmpty()) {
+            return 0.0;
+        }
+
+        if (v1.size() != v2.size()) {
+            logger.warn("Incompatible vector sizes for cosine similarity: {} vs {}. Returning 0.0",
+                    v1.size(), v2.size());
+            return 0.0;
+        }
+
+        if (v1.size() != getDimension()) {
+            logger.warn("Vector size {} does not match current model dimension {}. Returning 0.0",
+                    v1.size(), getDimension());
             return 0.0;
         }
 
