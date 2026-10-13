@@ -30,4 +30,9 @@ public class RagResumeController {
     public ResponseEntity<Map<String, Object>> getCandidateProfile(@PathVariable("candidateId") String candidateId) {
         return ResponseEntity.ok(ragResumeService.getCandidateProfile(candidateId));
     }
+
+    @GetMapping("/resumes/{candidateId}")
+    public ResponseEntity<Map<String, Object>> getCandidateResumes(@PathVariable("candidateId") String candidateId) {
+        return ResponseEntity.ok(ragResumeService.getCandidateProfile(candidateId));
+    }
 }

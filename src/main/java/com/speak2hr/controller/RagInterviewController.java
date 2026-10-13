@@ -28,7 +28,7 @@ public class RagInterviewController {
         return ResponseEntity.ok(ragInterviewService.getSessionSummary(sessionId));
     }
 
-    @PostMapping("/evaluate-text-response")
+    @PostMapping({"/evaluate-text-response", "/evaluate-text"})
     public ResponseEntity<Map<String, Object>> evaluateTextResponse(@RequestBody RagEvaluateTextRequest request) {
         return ResponseEntity.ok(ragInterviewService.evaluateTextResponse(request));
     }

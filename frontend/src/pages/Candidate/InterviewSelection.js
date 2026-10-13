@@ -157,7 +157,8 @@ function InterviewSelection() {
     setRagLoading(true);
     setRagError('');
     try {
-      const response = await resumeRagAPI.uploadResume(file, user?.id || 'candidate_user');
+      const candidateId = user?.id || user?._id || user?.userId || 'candidate_user';
+      const response = await resumeRagAPI.uploadResume(file, candidateId);
       setRagData(response.data);
       setSelectedExistingResumeId(response.data.resume_id);
       if (response.data.target_role) {
@@ -185,9 +186,10 @@ function InterviewSelection() {
     setRagGenerating(true);
     setRagError('');
     try {
+      const candidateId = user?.id || user?._id || user?.userId || 'candidate_user';
       const targetRole = ragData?.target_role || ragConfig.role || user?.targetRole || 'Full-Stack Developer';
       const response = await resumeRagAPI.generateQuestions({
-        candidateId: user?.id || 'candidate_user',
+        candidateId: candidateId,
         resumeId: resumeId,
         role: targetRole,
         candidateName: user?.name || ragData?.candidate_name || 'Candidate',

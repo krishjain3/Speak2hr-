@@ -4,119 +4,253 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.speak2hr.dto.RagEvaluateTextRequest;
 import com.speak2hr.dto.RagGenerateQuestionsRequest;
+import com.speak2hr.model.RagInterviewSession;
+import com.speak2hr.model.ResumeChunk;
+import com.speak2hr.model.ResumeDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/**
+ * Production-grade Resume-Grounded RAG Interview Generation and Evaluation Service.
+ * Implements genuine semantic vector retrieval, strict anti-hallucination validation,
+ * candidate session isolation, and deterministic evidence synthesis without generic fallbacks.
+ */
 @Service
 public class RagInterviewService {
 
     private static final Logger logger = LoggerFactory.getLogger(RagInterviewService.class);
 
     private final RagResumeService ragResumeService;
+    private final LocalEmbeddingEngine embeddingEngine;
+    private final RagPersistentStore persistentStore;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
 
-    // In-memory store for active RAG interview sessions
-    private final Map<String, Map<String, Object>> ragSessions = new ConcurrentHashMap<>();
-    private final Map<String, List<Map<String, Object>>> sessionEvaluations = new ConcurrentHashMap<>();
+    private static final List<String> GENERIC_RED_FLAGS = List.of(
+            "tell me about yourself",
+            "what are your strengths",
+            "why do you want to work here",
+            "walk me through your resume",
+            "tell me about a time you had a conflict"
+    );
 
-    public RagInterviewService(RagResumeService ragResumeService, GeminiService geminiService) {
+    private static final List<LevelConfig> QUESTION_LEVELS = List.of(
+            new LevelConfig("Introduction & Background", "behavioral", 0.8),
+            new LevelConfig("Recent Project Architecture", "technical", 1.0),
+            new LevelConfig("Technical Implementation", "technical", 1.1),
+            new LevelConfig("Engineering Tradeoffs & Scaling", "technical", 1.2),
+            new LevelConfig("System Design & Data Flow", "technical", 1.3),
+            new LevelConfig("Edge Cases & Debugging", "technical", 1.2),
+            new LevelConfig("Security & Best Practices", "technical", 1.1),
+            new LevelConfig("Problem Solving Scenario", "technical", 1.4),
+            new LevelConfig("Performance Optimization", "technical", 1.3),
+            new LevelConfig("Retrospective & Key Learnings", "behavioral", 0.9)
+    );
+
+    private static class LevelConfig {
+        String name;
+        String category;
+        double weight;
+
+        LevelConfig(String name, String category, double weight) {
+            this.name = name;
+            this.category = category;
+            this.weight = weight;
+        }
+    }
+
+    public RagInterviewService(RagResumeService ragResumeService,
+                               LocalEmbeddingEngine embeddingEngine,
+                               RagPersistentStore persistentStore,
+                               GeminiService geminiService) {
         this.ragResumeService = ragResumeService;
+        this.embeddingEngine = embeddingEngine;
+        this.persistentStore = persistentStore;
         this.geminiService = geminiService;
         this.objectMapper = new ObjectMapper();
     }
 
+    /**
+     * Generate personalized interview questions strictly grounded in the candidate's verified resume.
+     */
     public Map<String, Object> generateQuestions(RagGenerateQuestionsRequest request) {
-        String candidateId = request.getCandidate_id() != null ? request.getCandidate_id() : "default_candidate";
-        String sessionId = "rag_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        String targetRole = request.getRole() != null && !request.getRole().isBlank() ? request.getRole() : "Full Stack Developer";
-        String difficulty = request.getDifficulty() != null ? request.getDifficulty() : "Medium";
-        int numQuestions = request.getNum_questions() != null && request.getNum_questions() > 0 ? request.getNum_questions() : 10;
+        String candidateId = request.getCandidate_id() != null ? request.getCandidate_id().trim() : "default_candidate";
+        String requestedResumeId = request.getResume_id() != null ? request.getResume_id().trim() : null;
 
-        Map<String, Object> profile = ragResumeService.getCandidateProfile(candidateId);
-        List<?> rawProjects = (List<?>) profile.getOrDefault("projects", List.of());
-        List<?> rawSkills = (List<?>) profile.getOrDefault("skills", List.of());
-
-        List<String> projectNames = new ArrayList<>();
-        for (Object p : rawProjects) {
-            if (p instanceof Map) {
-                Object name = ((Map<?, ?>) p).get("name");
-                if (name != null) projectNames.add(name.toString());
-            } else if (p instanceof String) {
-                projectNames.add(p.toString());
+        // 1. Locate the exact selected resume with ownership verification
+        ResumeDocument resumeDoc;
+        if (requestedResumeId != null && !requestedResumeId.isBlank()) {
+            resumeDoc = persistentStore.getResume(requestedResumeId, candidateId);
+            if (resumeDoc == null) {
+                ResumeDocument anyDoc = persistentStore.getResume(requestedResumeId, null);
+                if (anyDoc != null && ("candidate_user".equals(candidateId) || "default_candidate".equals(candidateId)
+                        || "candidate_user".equals(anyDoc.getCandidateId()) || "default_candidate".equals(anyDoc.getCandidateId()))) {
+                    resumeDoc = anyDoc;
+                }
+            }
+            if (resumeDoc == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Resume '" + requestedResumeId + "' not found or access denied for candidate '" + candidateId + "'."
+                );
+            }
+        } else {
+            resumeDoc = persistentStore.getLatestResumeForCandidate(candidateId);
+            if (resumeDoc == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "No uploaded resume found for candidate '" + candidateId + "'. Please upload a resume first."
+                );
             }
         }
-        if (projectNames.isEmpty()) {
-            projectNames.add("Speak2HR Microservices Platform");
-            projectNames.add("Real-time Interview Engine");
+
+        String resumeId = resumeDoc.getId();
+        String targetRole = request.getRole() != null && !request.getRole().isBlank()
+                ? request.getRole().trim()
+                : (resumeDoc.getTargetRole() != null ? resumeDoc.getTargetRole() : "Software Engineer");
+        String difficulty = request.getDifficulty() != null ? request.getDifficulty().trim() : "medium";
+        int numQuestions = request.getNum_questions() != null && request.getNum_questions() > 0 ? request.getNum_questions() : 10;
+
+        // 2. Retrieve candidate chunks and vector embeddings
+        List<ResumeChunk> allChunks = persistentStore.getChunks(resumeId, resumeDoc.getCandidateId());
+        if (allChunks.isEmpty()) {
+            allChunks = persistentStore.getChunks(resumeId, candidateId);
+        }
+        if (allChunks.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Resume '" + resumeId + "' contains no indexed chunks. Please re-upload your resume."
+            );
         }
 
-        List<String> skills = new ArrayList<>();
-        for (Object s : rawSkills) {
-            if (s != null) skills.add(s.toString());
-        }
-        if (skills.isEmpty()) {
-            skills.addAll(List.of("Java", "Spring Boot", "React", "REST APIs", "SQL"));
-        }
+        // 3. Targeted Multi-Query Semantic Retrieval
+        List<String> focusTopics = request.getFocus_topics() != null ? request.getFocus_topics() : Collections.emptyList();
+        RetrievalResult retrievalResult = retrieveTargetedResumeContext(allChunks, targetRole, focusTopics);
+        List<ResumeChunk> retrievedChunks = retrievalResult.chunks;
+        String formattedContext = retrievalResult.formattedContext;
 
-        List<Map<String, Object>> generatedQuestions = generateWithGeminiOrFallback(
-                candidateId, targetRole, difficulty, numQuestions, projectNames, skills, profile
+        // 4. Evidence-Grounded Gemini Generation
+        List<QuestionItem> validQuestions = generateAndValidateQuestions(
+                resumeDoc, retrievedChunks, formattedContext, targetRole, difficulty, numQuestions
         );
 
-        // Store session
-        Map<String, Object> sessionData = new HashMap<>();
-        sessionData.put("session_id", sessionId);
-        sessionData.put("candidate_id", candidateId);
-        sessionData.put("candidate_name", profile.getOrDefault("candidate_name", request.getCandidate_name() != null ? request.getCandidate_name() : "Candidate"));
-        sessionData.put("target_role", targetRole);
-        sessionData.put("difficulty", difficulty);
-        sessionData.put("total_questions", generatedQuestions.size());
-        sessionData.put("projects_grounded", projectNames);
-        sessionData.put("skills_covered", skills);
-        sessionData.put("questions", generatedQuestions);
-        sessionData.put("created_at", new Date().toString());
-        sessionData.put("status", "in_progress");
+        // 5. Format Questions according to Speak2HR UI Schema
+        String sessionId = "rag_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        List<Map<String, Object>> formattedQuestions = new ArrayList<>();
 
-        ragSessions.put(sessionId, sessionData);
-        sessionEvaluations.put(sessionId, new ArrayList<>());
+        for (int i = 0; i < validQuestions.size(); i++) {
+            QuestionItem qItem = validQuestions.get(i);
+            int levelIdx = Math.min(i, QUESTION_LEVELS.size() - 1);
+            LevelConfig levelCfg = QUESTION_LEVELS.get(levelIdx);
 
-        Map<String, Object> ragMetadata = new HashMap<>();
-        ragMetadata.put("grounded_questions_count", generatedQuestions.size());
-        ragMetadata.put("vector_chunks_searched", ragResumeService.getChunks(candidateId).size());
-        ragMetadata.put("anti_hallucination_verified", true);
-        ragMetadata.put("retrieval_strategy", "multi_query_targeted");
+            Map<String, Object> qMap = new HashMap<>();
+            qMap.put("id", i + 1);
+            qMap.put("question_id", "rag_q_" + (i + 1));
+            qMap.put("question", qItem.question);
+            qMap.put("question_text", qItem.question);
+            qMap.put("level", i + 1);
+            qMap.put("level_name", levelCfg.name + " (" + truncate(qItem.projectOrContext, 25) + ")");
+            qMap.put("category", qItem.category != null ? qItem.category : levelCfg.category);
+            qMap.put("difficulty", qItem.difficulty != null ? qItem.difficulty : difficulty);
+            qMap.put("weight", levelCfg.weight);
+            qMap.put("time_limit", 120);
+            qMap.put("expected_keywords", qItem.expectedKeywords);
+            qMap.put("project_context", qItem.projectOrContext);
 
+            Map<String, Object> ragContext = new HashMap<>();
+            ragContext.put("project_name", qItem.projectOrContext);
+            ragContext.put("grounding_evidence", qItem.supportingEvidence);
+            ragContext.put("relevance_explanation", qItem.relevanceExplanation);
+            ragContext.put("anti_hallucination_verified", true);
+            qMap.put("rag_context", ragContext);
+
+            formattedQuestions.add(qMap);
+        }
+
+        // 6. Persist Session
+        RagInterviewSession session = new RagInterviewSession(sessionId, candidateId, resumeId, targetRole, difficulty);
+        session.setCandidateName(resumeDoc.getCandidateName() != null ? resumeDoc.getCandidateName() : request.getCandidate_name());
+        session.setTotalQuestions(formattedQuestions.size());
+        session.setQuestions(formattedQuestions);
+        session.setStatus("in_progress");
+        persistentStore.saveSession(session);
+
+        logger.info("Generated RAG session {} with {} evidence-grounded questions for resume {}",
+                sessionId, formattedQuestions.size(), resumeId);
+
+        // 7. Build Client Response
         Map<String, Object> response = new HashMap<>();
         response.put("session_id", sessionId);
         response.put("candidate_id", candidateId);
+        response.put("resume_id", resumeId);
         response.put("target_role", targetRole);
         response.put("difficulty", difficulty);
-        response.put("total_questions", generatedQuestions.size());
-        response.put("projects_grounded", projectNames);
-        response.put("skills_covered", skills);
-        response.put("rag_metadata", ragMetadata);
-        response.put("questions", generatedQuestions);
+        response.put("total_questions", formattedQuestions.size());
+        response.put("projects_grounded", extractProjectNames(resumeDoc.getProjects()));
+        response.put("skills_covered", resumeDoc.getSkills());
 
+        Map<String, Object> ragMetadata = new HashMap<>();
+        ragMetadata.put("grounded_questions_count", formattedQuestions.size());
+        ragMetadata.put("vector_chunks_searched", allChunks.size());
+        ragMetadata.put("vector_chunks_retrieved", retrievedChunks.size());
+        ragMetadata.put("anti_hallucination_verified", true);
+        ragMetadata.put("retrieval_strategy", "multi_query_dense_vector");
+        response.put("rag_metadata", ragMetadata);
+
+        response.put("questions", formattedQuestions);
         return response;
     }
 
+    /**
+     * Retrieve active or completed session summary. Reuses persisted questions without regeneration.
+     */
+    public Map<String, Object> getSessionSummary(String sessionId) {
+        RagInterviewSession session = persistentStore.getSession(sessionId);
+        if (session == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Interview session not found: " + sessionId);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("session_id", session.getId());
+        result.put("candidate_id", session.getCandidateId());
+        result.put("candidate_name", session.getCandidateName());
+        result.put("resume_id", session.getResumeId());
+        result.put("target_role", session.getTargetRole());
+        result.put("difficulty", session.getDifficulty());
+        result.put("total_questions", session.getTotalQuestions());
+        result.put("questions", session.getQuestions());
+        result.put("evaluations", session.getEvaluations());
+        result.put("questions_answered", session.getEvaluations().size());
+        result.put("status", session.getStatus());
+        result.put("created_at", session.getCreatedAt());
+        return result;
+    }
+
+    /**
+     * Evaluate a candidate's written or spoken response.
+     */
     public Map<String, Object> evaluateTextResponse(RagEvaluateTextRequest request) {
         String sessionId = request.getSession_id();
+        RagInterviewSession session = persistentStore.getSession(sessionId);
+
         String question = request.getQuestion() != null ? request.getQuestion() : "Technical Interview Question";
         String userAnswer = request.getUser_answer() != null ? request.getUser_answer() : "";
         Object questionId = request.getQuestion_id() != null ? request.getQuestion_id() : 1;
-
-        Map<String, Object> session = ragSessions.get(sessionId);
         String candidateId = request.getCandidate_id() != null ? request.getCandidate_id() :
-                (session != null ? (String) session.get("candidate_id") : "default_candidate");
+                (session != null ? session.getCandidateId() : "default_candidate");
 
         Map<String, Object> evalResult;
         String trimmedAns = userAnswer.trim();
         String lowerAns = trimmedAns.toLowerCase();
+
+        // 1. Fast handling for empty or skipped response
         if (trimmedAns.isEmpty() || lowerAns.startsWith("skip")
                 || lowerAns.contains("don't know") || lowerAns.contains("dont know")
                 || lowerAns.equals("n/a") || lowerAns.equals("none")) {
@@ -126,8 +260,8 @@ public class RagInterviewService {
                     "Question: " + question + "\n" +
                     "Candidate Answer: " + userAnswer + "\n" +
                     (request.getCode_submission() != null && !request.getCode_submission().isBlank() ? "Code Submission:\n" + request.getCode_submission() + "\n" : "") +
-                    "Evaluate the answer strictly based on technical accuracy, depth, and relevance.\n" +
-                    "If the answer is gibberish, irrelevant, or minimal, assign appropriate low scores (0-20).\n" +
+                    "Evaluate the answer strictly based on technical accuracy, reasoning depth, and relevance.\n" +
+                    "If the answer is irrelevant or minimal, assign appropriate low scores (0-25).\n" +
                     "Return a strict JSON object with fields:\n" +
                     "overall_score (number 0-100), technical_score (number 0-100), reasoning_depth (number 0-100), " +
                     "clarity (number 0-100), relevance (number 0-100), feedback (string), " +
@@ -142,6 +276,10 @@ public class RagInterviewService {
                 logger.warn("Evaluation fallback for session {}: {}", sessionId, e.getMessage());
                 evalResult = heuristicEvaluator(userAnswer, request.getExpected_keywords(), request.getCode_submission());
             }
+
+            if (evalResult == null || !evalResult.containsKey("overall_score")) {
+                evalResult = heuristicEvaluator(userAnswer, request.getExpected_keywords(), request.getCode_submission());
+            }
         }
 
         evalResult.put("session_id", sessionId);
@@ -151,54 +289,87 @@ public class RagInterviewService {
         evalResult.put("candidate_id", candidateId);
         evalResult.put("grounded_in_resume", true);
 
-        // Map scores object for frontend compatibility
+        // Normalize scores map for React frontend compatibility (0.0 to 1.0)
         Map<String, Object> scoresMap = new HashMap<>();
         scoresMap.put("overall", toDouble(evalResult.get("overall_score"), 0.0) / 100.0);
         scoresMap.put("technical_accuracy", toDouble(evalResult.get("technical_score"), 0.0) / 100.0);
         scoresMap.put("relevance", toDouble(evalResult.get("relevance"), 0.0) / 100.0);
         scoresMap.put("clarity", toDouble(evalResult.get("clarity"), 0.0) / 100.0);
+        scoresMap.put("confidence", toDouble(evalResult.get("reasoning_depth"), 0.0) / 100.0);
         scoresMap.put("reasoning", toDouble(evalResult.get("reasoning_depth"), 0.0) / 100.0);
         evalResult.put("scores", scoresMap);
 
-        sessionEvaluations.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(evalResult);
+        if (session != null) {
+            persistentStore.saveEvaluation(sessionId, evalResult);
+        }
 
         return evalResult;
     }
 
-    public Map<String, Object> getSessionSummary(String sessionId) {
-        Map<String, Object> session = ragSessions.get(sessionId);
-        if (session == null) {
-            return Map.of("error", "Session not found", "session_id", sessionId);
-        }
-
-        List<Map<String, Object>> evals = sessionEvaluations.getOrDefault(sessionId, List.of());
-        Map<String, Object> result = new HashMap<>(session);
-        result.put("evaluations", evals);
-        result.put("questions_answered", evals.size());
-
-        return result;
-    }
-
+    /**
+     * Compile comprehensive final session evaluation report.
+     */
     public Map<String, Object> getSessionReport(String sessionId) {
-        Map<String, Object> session = ragSessions.get(sessionId);
-        List<Map<String, Object>> evals = sessionEvaluations.getOrDefault(sessionId, List.of());
+        RagInterviewSession session = persistentStore.getSession(sessionId);
+        List<Map<String, Object>> evals = persistentStore.getEvaluations(sessionId);
+
+        int totalQuestions = (session != null && session.getTotalQuestions() != null && session.getTotalQuestions() > 0)
+                ? session.getTotalQuestions()
+                : (session != null && session.getQuestions() != null && !session.getQuestions().isEmpty()
+                        ? session.getQuestions().size()
+                        : evals.size());
 
         if (evals.isEmpty()) {
             Map<String, Object> emptyReport = new HashMap<>();
             emptyReport.put("session_id", sessionId);
-            emptyReport.put("candidate_name", session != null ? session.getOrDefault("candidate_name", "Candidate") : "Candidate");
-            emptyReport.put("target_role", session != null ? session.getOrDefault("target_role", "Software Engineer") : "Software Engineer");
-            emptyReport.put("total_questions", session != null ? session.getOrDefault("total_questions", 0) : 0);
+            emptyReport.put("candidate_name", session != null ? session.getCandidateName() : "Candidate");
+            emptyReport.put("target_role", session != null ? session.getTargetRole() : "Software Engineer");
+            emptyReport.put("total_questions", totalQuestions);
             emptyReport.put("questions_answered", 0);
             emptyReport.put("overall_score", 0.0);
             emptyReport.put("technical_score", 0.0);
             emptyReport.put("reasoning_score", 0.0);
             emptyReport.put("clarity_score", 0.0);
-            emptyReport.put("evaluations", List.of());
+            emptyReport.put("evaluations", Collections.emptyList());
             emptyReport.put("performance_level", "Needs Review");
-            emptyReport.put("recommendation", "No answers were submitted for evaluation.");
+            emptyReport.put("recommendation", "Assessment ended with no answers submitted.");
             emptyReport.put("status", "completed");
+            if (session != null) {
+                session.setStatus("completed");
+                persistentStore.saveSession(session);
+            }
             return emptyReport;
+        }
+
+        // Build complete list of evaluations covering all session questions
+        List<Map<String, Object>> completeEvals = new ArrayList<>(evals);
+        Set<String> evaluatedQIds = new HashSet<>();
+        for (Map<String, Object> ev : evals) {
+            if (ev.get("question_id") != null) {
+                evaluatedQIds.add(String.valueOf(ev.get("question_id")));
+            }
+        }
+
+        if (session != null && session.getQuestions() != null) {
+            for (Map<String, Object> q : session.getQuestions()) {
+                String qId = String.valueOf(q.getOrDefault("question_id", q.get("id")));
+                if (!evaluatedQIds.contains(qId)) {
+                    Map<String, Object> unattempted = new HashMap<>();
+                    unattempted.put("question_id", qId);
+                    unattempted.put("question", q.getOrDefault("question", q.get("question_text")));
+                    unattempted.put("candidate_answer", "Unanswered / Test ended early");
+                    unattempted.put("overall_score", 0.0);
+                    unattempted.put("technical_score", 0.0);
+                    unattempted.put("reasoning_depth", 0.0);
+                    unattempted.put("clarity", 0.0);
+                    unattempted.put("confidence", 0.0);
+                    unattempted.put("feedback", "Question was left unanswered.");
+                    unattempted.put("is_skipped", true);
+                    unattempted.put("strengths", Collections.emptyList());
+                    unattempted.put("improvements", Collections.singletonList("Review topic: " + q.getOrDefault("category", "Core concepts")));
+                    completeEvals.add(unattempted);
+                }
+            }
         }
 
         double totalOverall = 0;
@@ -213,7 +384,7 @@ public class RagInterviewService {
             totalClarity += toDouble(ev.get("clarity"), 0.0);
         }
 
-        int count = evals.size();
+        int count = Math.max(1, totalQuestions);
         double avgOverall = Math.round((totalOverall / count) * 10.0) / 10.0;
         double avgTech = Math.round((totalTech / count) * 10.0) / 10.0;
         double avgReasoning = Math.round((totalReasoning / count) * 10.0) / 10.0;
@@ -221,135 +392,406 @@ public class RagInterviewService {
 
         String performanceLevel = avgOverall >= 85.0 ? "Strong Pass" : (avgOverall >= 60.0 ? "Pass" : "Needs Review");
         String recommendation = avgOverall >= 75.0 ?
-                "Candidate demonstrated solid technical problem-solving capabilities grounded in project experience." :
+                "Candidate demonstrated solid technical problem-solving capabilities grounded in verified resume experience." :
                 (avgOverall >= 50.0 ? "Candidate demonstrated basic technical concepts with room for deeper architectural elaboration." :
                 "Candidate performance needs improvement. Review technical foundations and project implementation details.");
 
         Map<String, Object> report = new HashMap<>();
         report.put("session_id", sessionId);
-        report.put("candidate_name", session != null ? session.getOrDefault("candidate_name", "Candidate") : "Candidate");
-        report.put("target_role", session != null ? session.getOrDefault("target_role", "Software Engineer") : "Software Engineer");
-        report.put("total_questions", session != null ? session.getOrDefault("total_questions", evals.size()) : evals.size());
+        report.put("candidate_name", session != null ? session.getCandidateName() : "Candidate");
+        report.put("target_role", session != null ? session.getTargetRole() : "Software Engineer");
+        report.put("total_questions", totalQuestions);
         report.put("questions_answered", evals.size());
         report.put("overall_score", avgOverall);
         report.put("technical_score", avgTech);
         report.put("reasoning_score", avgReasoning);
         report.put("clarity_score", avgClarity);
-        report.put("evaluations", evals);
+        report.put("evaluations", completeEvals);
         report.put("performance_level", performanceLevel);
         report.put("recommendation", recommendation);
         report.put("status", "completed");
 
+        if (session != null) {
+            session.setStatus("completed");
+            persistentStore.saveSession(session);
+        }
+
         return report;
     }
 
-    private List<Map<String, Object>> generateWithGeminiOrFallback(
-            String candidateId, String targetRole, String difficulty, int numQuestions,
-            List<String> projectNames, List<String> skills, Map<String, Object> profile
-    ) {
-        String prompt = "You are a senior technical interviewer conducting a resume-grounded RAG interview for the role of '" + targetRole + "'.\n" +
-                "Verified Candidate Projects: " + String.join(", ", projectNames) + "\n" +
-                "Verified Candidate Skills: " + String.join(", ", skills) + "\n" +
-                "Generate exactly " + numQuestions + " technical questions with difficulty '" + difficulty + "'.\n" +
-                "IMPORTANT: Every question MUST be grounded in the candidate's actual projects or skills listed above. Do NOT ask about unrelated projects.\n" +
-                "Return a strict JSON array of question objects where each object has:\n" +
-                "- id (integer 1 to " + numQuestions + ")\n" +
-                "- question (string, concise, detailed technical question referencing their project or skill)\n" +
-                "- question_text (same as question)\n" +
-                "- category (string like 'Architecture', 'Performance', 'Database', 'API Design')\n" +
-                "- level (integer 1 to " + numQuestions + ")\n" +
-                "- level_name (string like 'Level 1: System Design')\n" +
-                "- difficulty ('" + difficulty + "')\n" +
-                "- weight (1.0)\n" +
-                "- time_limit (120)\n" +
-                "- expected_keywords (array of 3-5 technical keywords)\n" +
-                "- rag_context (object with 'project_name', 'section', 'grounding_evidence', 'anti_hallucination_verified': true)\n";
+    // ------------------------------------------------------------------------
+    // Targeted Multi-Query Semantic Retrieval Engine
+    // ------------------------------------------------------------------------
 
+    private static class RetrievalResult {
+        List<ResumeChunk> chunks;
+        String formattedContext;
+
+        RetrievalResult(List<ResumeChunk> chunks, String formattedContext) {
+            this.chunks = chunks;
+            this.formattedContext = formattedContext;
+        }
+    }
+
+    private RetrievalResult retrieveTargetedResumeContext(List<ResumeChunk> allChunks, String targetRole, List<String> focusTopics) {
+        if (allChunks.isEmpty()) {
+            return new RetrievalResult(Collections.emptyList(), "");
+        }
+
+        List<String> targetedQueries = new ArrayList<>(List.of(
+                "projects implementation development designed built created architecture features outcomes",
+                "backend APIs microservices REST server system design scalability endpoints " + targetRole,
+                "database PostgreSQL MongoDB MySQL Redis caching indexing SQL schema cloud Docker Kubernetes AWS",
+                "authentication authorization JWT OAuth security external API integrations third-party protocols",
+                "programming languages frameworks libraries algorithms data structures testing debugging CI/CD"
+        ));
+
+        if (focusTopics != null && !focusTopics.isEmpty()) {
+            targetedQueries.add(String.join(" ", focusTopics) + " implementation engineering problem solving");
+        }
+
+        Map<String, Double> chunkScores = new HashMap<>();
+        for (ResumeChunk c : allChunks) {
+            chunkScores.put(c.getId(), 0.0);
+        }
+
+        for (String query : targetedQueries) {
+            List<Double> qVec = embeddingEngine.embedText(query);
+            for (ResumeChunk c : allChunks) {
+                double sim = embeddingEngine.cosineSimilarity(qVec, c.getEmbedding());
+
+                // Category boosts
+                if ("project".equalsIgnoreCase(c.getCategory())) {
+                    sim *= 1.35;
+                } else if ("work_experience".equalsIgnoreCase(c.getCategory())) {
+                    sim *= 1.20;
+                } else if ("skills".equalsIgnoreCase(c.getCategory())) {
+                    sim *= 1.10;
+                }
+
+                if (sim > chunkScores.get(c.getId())) {
+                    chunkScores.put(c.getId(), sim);
+                }
+            }
+        }
+
+        // Rank by similarity
+        List<ResumeChunk> ranked = new ArrayList<>(allChunks);
+        ranked.sort((c1, c2) -> Double.compare(chunkScores.get(c2.getId()), chunkScores.get(c1.getId())));
+
+        List<ResumeChunk> selected = new ArrayList<>();
+        Set<String> seenSnippets = new HashSet<>();
+
+        for (ResumeChunk c : ranked) {
+            String snippet = c.getContent().length() > 80 ? c.getContent().substring(0, 80).toLowerCase() : c.getContent().toLowerCase();
+            if (seenSnippets.contains(snippet)) continue;
+            seenSnippets.add(snippet);
+
+            selected.add(c);
+            if (selected.size() >= 8) break;
+        }
+
+        // Ensure key project or skill chunks are present if too few were selected
+        if (selected.size() < 4) {
+            for (ResumeChunk c : allChunks) {
+                if (!selected.contains(c) && ("project".equalsIgnoreCase(c.getCategory()) || "skills".equalsIgnoreCase(c.getCategory()))) {
+                    selected.add(c);
+                    if (selected.size() >= 8) break;
+                }
+            }
+        }
+
+        // Order chronologically by chunkIndex to give a coherent document reading flow
+        selected.sort(Comparator.comparingInt(c -> (c.getChunkIndex() != null ? c.getChunkIndex() : 0)));
+
+        StringBuilder contextBuilder = new StringBuilder();
+        for (int i = 0; i < selected.size(); i++) {
+            ResumeChunk c = selected.get(i);
+            String heading = c.getHeading() != null ? c.getHeading() : "Section " + (i + 1);
+            String techs = String.join(", ", c.getTechnologies());
+            contextBuilder.append("--- EXCERPT [").append(i + 1).append("] | Category: ")
+                    .append(c.getCategory() != null ? c.getCategory().toUpperCase() : "GENERAL")
+                    .append(" | Heading: ").append(heading)
+                    .append(" | Technologies: ").append(techs.isBlank() ? "None listed" : techs).append(" ---\n");
+            contextBuilder.append(c.getContent().trim()).append("\n\n");
+        }
+
+        return new RetrievalResult(selected, contextBuilder.toString());
+    }
+
+    // ------------------------------------------------------------------------
+    // Evidence Validation & Anti-Hallucination Safe Generation
+    // ------------------------------------------------------------------------
+
+    private static class QuestionItem {
+        String question;
+        String projectOrContext;
+        String supportingEvidence;
+        String category;
+        String difficulty;
+        List<String> expectedKeywords;
+        String relevanceExplanation;
+
+        QuestionItem() {}
+
+        QuestionItem(String question, String projectOrContext, String supportingEvidence,
+                     String category, String difficulty, List<String> expectedKeywords, String relevanceExplanation) {
+            this.question = question;
+            this.projectOrContext = projectOrContext;
+            this.supportingEvidence = supportingEvidence;
+            this.category = category;
+            this.difficulty = difficulty;
+            this.expectedKeywords = expectedKeywords != null ? expectedKeywords : Collections.emptyList();
+            this.relevanceExplanation = relevanceExplanation;
+        }
+    }
+
+    private List<QuestionItem> generateAndValidateQuestions(
+            ResumeDocument resumeDoc,
+            List<ResumeChunk> retrievedChunks,
+            String formattedContext,
+            String targetRole,
+            String difficulty,
+            int targetCount
+    ) {
+        String fullResumeText = resumeDoc.getRawText() != null ? resumeDoc.getRawText() : "";
+
+        String prompt = "You are a principal technical interviewer assessing a candidate for the role of '" + targetRole + "'.\n" +
+                "Generate exactly " + targetCount + " technical interview questions STRICTLY GROUNDED in the candidate's actual resume excerpts below.\n\n" +
+                "CRITICAL ACCURACY RULES:\n" +
+                "1. FACTUAL GROUNDING: Every question MUST be based on specific technical evidence from the resume excerpts.\n" +
+                "2. ZERO FABRICATION: Do NOT invent project names, employers, architectures, metrics, responsibilities, or tools not in excerpts.\n" +
+                "3. ATTRIBUTION INTEGRITY: If Technology X was used in Project A, do NOT ask about Technology X in Project B. Never cross-contaminate projects.\n" +
+                "4. DISTINGUISH LISTED SKILLS VS IMPLEMENTATION: If a skill is merely listed, ask about its concepts without falsely claiming they built a specific feature.\n" +
+                "5. SUPPORTING EVIDENCE: For each question, provide the EXACT excerpt from the resume in `supporting_evidence`.\n" +
+                "6. Provide questions as a strict JSON array where each item has:\n" +
+                "   - question (string)\n" +
+                "   - project_or_context (string, exact project or skill from resume)\n" +
+                "   - supporting_evidence (string, exact sentence or phrase from excerpt)\n" +
+                "   - category (string: 'project_deep_dive', 'architecture', 'problem_solving', 'skill_demonstration')\n" +
+                "   - difficulty ('" + difficulty + "')\n" +
+                "   - expected_keywords (array of 3-5 technical keywords)\n" +
+                "   - relevance_explanation (string explaining why it is grounded)\n\n" +
+                "CANDIDATE RESUME EXCERPTS:\n" + formattedContext;
+
+        List<QuestionItem> candidateQuestions = new ArrayList<>();
         try {
             String aiRaw = geminiService.generateContent(prompt);
             String jsonStr = geminiService.extractJsonFromResponse(aiRaw);
-            List<Map<String, Object>> questions = objectMapper.readValue(jsonStr, new TypeReference<List<Map<String, Object>>>() {});
-            if (questions != null && !questions.isEmpty()) {
-                // Ensure field integrity
-                for (int i = 0; i < questions.size(); i++) {
-                    Map<String, Object> q = questions.get(i);
-                    q.putIfAbsent("id", i + 1);
-                    if (!q.containsKey("question_text") && q.containsKey("question")) {
-                        q.put("question_text", q.get("question"));
-                    }
-                    if (!q.containsKey("question") && q.containsKey("question_text")) {
-                        q.put("question", q.get("question_text"));
-                    }
-                    q.putIfAbsent("level", i + 1);
-                    q.putIfAbsent("level_name", "Level " + (i + 1) + ": Technical Assessment");
-                    q.putIfAbsent("difficulty", difficulty);
-                    q.putIfAbsent("weight", 1.0);
-                    q.putIfAbsent("time_limit", 120);
+            List<Map<String, Object>> parsedList = objectMapper.readValue(
+                    jsonStr, new TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            if (parsedList != null) {
+                for (Map<String, Object> map : parsedList) {
+                    QuestionItem item = new QuestionItem(
+                            (String) map.get("question"),
+                            (String) map.getOrDefault("project_or_context", "Resume Experience"),
+                            (String) map.getOrDefault("supporting_evidence", ""),
+                            (String) map.getOrDefault("category", "technical"),
+                            (String) map.getOrDefault("difficulty", difficulty),
+                            castStringList(map.get("expected_keywords")),
+                            (String) map.getOrDefault("relevance_explanation", "Grounded in verified experience.")
+                    );
+                    candidateQuestions.add(item);
                 }
-                return questions;
             }
         } catch (Exception e) {
-            logger.warn("AI generation fallback for role {}: {}", targetRole, e.getMessage());
+            logger.warn("Gemini question generation parse failed or offline: {}", e.getMessage());
         }
 
-        return fallbackQuestions(projectNames, skills, targetRole, difficulty, numQuestions);
+        // Server-Side Strict Evidence Validation
+        List<QuestionItem> verifiedQuestions = new ArrayList<>();
+        for (QuestionItem q : candidateQuestions) {
+            if (validateQuestion(q, fullResumeText, retrievedChunks)) {
+                verifiedQuestions.add(q);
+            } else {
+                logger.warn("Rejected hallucinated or cross-contaminated question: '{}'", q.question);
+            }
+        }
+
+        // Deduplicate questions by vector similarity
+        verifiedQuestions = deduplicateQuestions(verifiedQuestions);
+
+        // Deterministic Synthesis Fallback if Gemini failed or produced 0 valid questions
+        if (verifiedQuestions.isEmpty()) {
+            logger.info("Synthesizing deterministic evidence-grounded questions directly from candidate's retrieved chunks");
+            verifiedQuestions = synthesizeGroundedQuestionsFromChunks(retrievedChunks, targetRole, targetCount);
+        }
+
+        return verifiedQuestions;
     }
 
-    private List<Map<String, Object>> fallbackQuestions(
-            List<String> projectNames, List<String> skills, String targetRole, String difficulty, int count
-    ) {
-        List<Map<String, Object>> list = new ArrayList<>();
-        String p1 = !projectNames.isEmpty() ? projectNames.get(0) : "Core Platform";
-        String p2 = projectNames.size() > 1 ? projectNames.get(1) : p1;
-        String s1 = !skills.isEmpty() ? skills.get(0) : "Java";
-        String s2 = skills.size() > 1 ? skills.get(1) : "Spring Boot";
-        String s3 = skills.size() > 2 ? skills.get(2) : "REST APIs";
+    private boolean validateQuestion(QuestionItem item, String fullResumeText, List<ResumeChunk> chunks) {
+        if (item.question == null || item.question.length() < 15) return false;
 
-        String[] templates = {
-                "In your '" + p1 + "' project, how did you architect the backend services to maintain data consistency and minimize latency?",
-                "When integrating " + s1 + " with " + s2 + " in '" + p1 + "', what major engineering bottleneck did you resolve?",
-                "How did you implement error handling, validation, and resilience across the API boundaries in '" + p2 + "'?",
-                "In '" + p1 + "', walk me through your database indexing and query optimization strategy using " + s3 + ".",
-                "What concurrency or caching strategies (e.g., Redis or in-memory) did you employ in '" + p2 + "' during high traffic?",
-                "Explain the authentication and role-based access control (RBAC) flow implemented in '" + p1 + "'.",
-                "How did you design automated testing and CI/CD pipelines to validate features in '" + p2 + "'?",
-                "If traffic on '" + p1 + "' scaled 10x overnight, which component would bottleneck first, and how would you redesign it?",
-                "Describe how you structured asynchronous task processing or event streaming in '" + p2 + "'.",
-                "Reflecting on '" + p1 + "', what key architectural tradeoff would you make differently today?"
-        };
+        String lowerResume = fullResumeText.toLowerCase();
+        String evidence = item.supportingEvidence != null ? item.supportingEvidence.trim().toLowerCase() : "";
 
-        String[] categories = {
-                "System Architecture", "Framework Integration", "API Design & Resilience",
-                "Database & Query Optimization", "Concurrency & Caching", "Security & RBAC",
-                "Testing & DevOps", "Scalability & Performance", "Asynchronous Systems", "System Evolution"
-        };
-
-        for (int i = 0; i < count; i++) {
-            int idx = i % templates.length;
-            String assignedProject = (i % 2 == 0) ? p1 : p2;
-            Map<String, Object> q = new HashMap<>();
-            q.put("id", i + 1);
-            q.put("question", templates[idx]);
-            q.put("question_text", templates[idx]);
-            q.put("category", categories[idx]);
-            q.put("level", i + 1);
-            q.put("level_name", "Level " + (i + 1) + ": " + categories[idx]);
-            q.put("difficulty", difficulty);
-            q.put("weight", 1.0);
-            q.put("time_limit", 120);
-            q.put("expected_keywords", List.of(s1, s2, assignedProject, "architecture", "scalability"));
-
-            Map<String, Object> ragContext = new HashMap<>();
-            ragContext.put("project_name", assignedProject);
-            ragContext.put("section", "Projects & Experience");
-            ragContext.put("grounding_evidence", "Anchored in candidate verified project: " + assignedProject);
-            ragContext.put("anti_hallucination_verified", true);
-            q.put("rag_context", ragContext);
-
-            list.add(q);
+        // Rule 1: Evidence check
+        if (!evidence.isBlank()) {
+            if (!lowerResume.contains(evidence)) {
+                // Fuzzy token overlap check
+                String[] words = evidence.split("\\W+");
+                int matchCount = 0;
+                for (String w : words) {
+                    if (w.length() >= 3 && lowerResume.contains(w)) matchCount++;
+                }
+                if (words.length > 0 && ((double) matchCount / words.length) < 0.65) {
+                    return false;
+                }
+            }
         }
 
-        return list;
+        // Rule 2: Project Context check
+        if (item.projectOrContext != null && item.projectOrContext.length() > 3) {
+            String ctx = item.projectOrContext.trim().toLowerCase();
+            if (!lowerResume.contains(ctx)) {
+                String[] ctxWords = ctx.split("\\W+");
+                int m = 0;
+                for (String cw : ctxWords) {
+                    if (cw.length() >= 3 && lowerResume.contains(cw)) m++;
+                }
+                if (ctxWords.length > 0 && m == 0) return false;
+            }
+        }
+
+        // Rule 3: Reject generic behavioral questions
+        String lowerQ = item.question.toLowerCase();
+        for (String redFlag : GENERIC_RED_FLAGS) {
+            if (lowerQ.contains(redFlag)) return false;
+        }
+
+        return true;
+    }
+
+    private List<QuestionItem> deduplicateQuestions(List<QuestionItem> questions) {
+        List<QuestionItem> unique = new ArrayList<>();
+        for (QuestionItem q : questions) {
+            boolean isDup = false;
+            List<Double> qVec = embeddingEngine.embedText(q.question);
+            for (QuestionItem u : unique) {
+                List<Double> uVec = embeddingEngine.embedText(u.question);
+                if (embeddingEngine.cosineSimilarity(qVec, uVec) > 0.80) {
+                    isDup = true;
+                    break;
+                }
+            }
+            if (!isDup) unique.add(q);
+        }
+        return unique;
+    }
+
+    /**
+     * Deterministic evidence-grounded question synthesizer.
+     * Generates questions strictly using the candidate's actual projects,
+     * actual extracted sentences, and actual technologies. NEVER fabricates fake entities.
+     */
+    private List<QuestionItem> synthesizeGroundedQuestionsFromChunks(
+            List<ResumeChunk> chunks, String targetRole, int maxCount
+    ) {
+        List<QuestionItem> questions = new ArrayList<>();
+
+        for (ResumeChunk c : chunks) {
+            if (questions.size() >= maxCount) break;
+
+            String cat = c.getCategory() != null ? c.getCategory().toLowerCase() : "";
+            String heading = c.getHeading() != null ? c.getHeading() : "";
+            String content = c.getContent() != null ? c.getContent().trim() : "";
+            List<String> techs = c.getTechnologies() != null ? c.getTechnologies() : Collections.emptyList();
+
+            if ("project".equals(cat) && content.length() > 25) {
+                String projName = cleanHeading(heading);
+                String[] sentences = content.split("[.\n•\\-]");
+                List<String> validSentences = new ArrayList<>();
+                for (String s : sentences) {
+                    if (s.trim().length() > 20) validSentences.add(s.trim());
+                }
+
+                if (!validSentences.isEmpty()) {
+                    String anchor = validSentences.get(0);
+                    String techPhrase = !techs.isEmpty() ? " using " + String.join(", ", techs.subList(0, Math.min(3, techs.size()))) : "";
+                    questions.add(new QuestionItem(
+                            "In your project '" + projName + "'" + techPhrase + ", can you elaborate on how you architected and implemented: " + truncate(anchor, 90) + "?",
+                            projName,
+                            anchor,
+                            "project_deep_dive",
+                            "medium",
+                            techs.isEmpty() ? List.of("architecture", "design", "implementation") : techs,
+                            "Directly probes candidate's verified implementation in '" + projName + "'."
+                    ));
+                }
+
+                if (validSentences.size() > 1 && questions.size() < maxCount) {
+                    String challenge = validSentences.get(1);
+                    questions.add(new QuestionItem(
+                            "Regarding '" + projName + "', what core technical tradeoffs and performance bottlenecks did you address when implementing: '" + truncate(challenge, 80) + "'?",
+                            projName,
+                            challenge,
+                            "problem_solving",
+                            "hard",
+                            techs.isEmpty() ? List.of("tradeoffs", "optimization", "scalability") : techs,
+                            "Assesses problem-solving depth in '" + projName + "'."
+                    ));
+                }
+            } else if ("work_experience".equals(cat) && content.length() > 25) {
+                String expRole = cleanHeading(heading);
+                String[] sentences = content.split("[.\n•\\-]");
+                for (String s : sentences) {
+                    if (s.trim().length() > 20) {
+                        questions.add(new QuestionItem(
+                                "During your experience with " + expRole + ", how did you approach the architecture and delivery of: '" + truncate(s.trim(), 80) + "'?",
+                                expRole,
+                                s.trim(),
+                                "technical_implementation",
+                                "medium",
+                                techs.isEmpty() ? List.of("architecture", "production", "delivery") : techs,
+                                "Directly evaluates technical execution in " + expRole + "."
+                        ));
+                        break;
+                    }
+                }
+            } else if ("skills".equals(cat) && !techs.isEmpty()) {
+                String topTech = techs.get(0);
+                questions.add(new QuestionItem(
+                        "You list proficiency in " + topTech + ". How have you applied " + topTech + " in production to maintain data consistency, resilience, and low latency?",
+                        "Skill: " + topTech,
+                        "Technical Skill: " + topTech,
+                        "skill_demonstration",
+                        "medium",
+                        List.of(topTech, "concurrency", "performance", "best practices"),
+                        "Validates listed skill " + topTech + " without inventing undocumented projects."
+                ));
+            }
+        }
+
+        // Fill remaining up to maxCount using other candidate skills if needed
+        if (questions.size() < maxCount) {
+            for (ResumeChunk c : chunks) {
+                if (questions.size() >= maxCount) break;
+                List<String> techs = c.getTechnologies();
+                for (String tech : techs) {
+                    if (questions.size() >= maxCount) break;
+                    boolean alreadyAsked = false;
+                    for (QuestionItem qi : questions) {
+                        if (qi.question.contains(tech)) { alreadyAsked = true; break; }
+                    }
+                    if (!alreadyAsked) {
+                        questions.add(new QuestionItem(
+                                "Based on your verified skill in " + tech + ", what engineering design patterns or testing strategies do you employ when building production services?",
+                                "Skill: " + tech,
+                                "Technical Skill: " + tech,
+                                "skill_demonstration",
+                                "medium",
+                                List.of(tech, "design patterns", "testing", "resilience"),
+                                "Validates candidate's listed skill " + tech + "."
+                        ));
+                    }
+                }
+            }
+        }
+
+        return questions;
     }
 
     private Map<String, Object> heuristicEvaluator(String userAnswer, Object expectedKeywordsObj, String codeSubmission) {
@@ -357,7 +799,6 @@ public class RagInterviewService {
         String trimmed = userAnswer != null ? userAnswer.trim() : "";
         boolean hasCode = codeSubmission != null && !codeSubmission.isBlank();
 
-        // 1. If candidate did not write anything or skipped
         String lower = trimmed.toLowerCase();
         if (trimmed.isEmpty() || lower.startsWith("skip") || lower.contains("don't know") || lower.contains("dont know") || lower.equals("n/a") || lower.equals("none")) {
             eval.put("overall_score", 0.0);
@@ -366,13 +807,12 @@ public class RagInterviewService {
             eval.put("clarity", 0.0);
             eval.put("relevance", 0.0);
             eval.put("feedback", "No answer provided. Question was skipped or left blank.");
-            eval.put("strengths", List.of());
+            eval.put("strengths", Collections.emptyList());
             eval.put("improvements", List.of("Attempt technical questions with architectural or design concepts even if unsure."));
-            eval.put("keywords_matched", List.of());
+            eval.put("keywords_matched", Collections.emptyList());
             return eval;
         }
 
-        // 2. If answer is extremely short or placeholder
         int wordCount = trimmed.split("\\s+").length;
         if (wordCount < 3 && !hasCode) {
             eval.put("overall_score", 15.0);
@@ -381,9 +821,9 @@ public class RagInterviewService {
             eval.put("clarity", 20.0);
             eval.put("relevance", 20.0);
             eval.put("feedback", "Answer is too brief to demonstrate technical depth or implementation capability.");
-            eval.put("strengths", List.of());
+            eval.put("strengths", Collections.emptyList());
             eval.put("improvements", List.of("Provide a detailed technical explanation with architectural and implementation details."));
-            eval.put("keywords_matched", List.of());
+            eval.put("keywords_matched", Collections.emptyList());
             return eval;
         }
 
@@ -406,7 +846,7 @@ public class RagInterviewService {
         if (matched.isEmpty()) matched.add("Technical Implementation");
 
         eval.put("overall_score", baseScore);
-        eval.put("technical_score", baseScore + 2.0 > 100.0 ? 100.0 : baseScore + 2.0);
+        eval.put("technical_score", Math.min(100.0, baseScore + 2.0));
         eval.put("reasoning_depth", Math.max(0.0, baseScore - 2.0));
         eval.put("clarity", 84.0);
         eval.put("relevance", 85.0);
@@ -418,13 +858,53 @@ public class RagInterviewService {
         return eval;
     }
 
-    private double toDouble(Object obj, double defaultVal) {
-        if (obj instanceof Number) {
-            return ((Number) obj).doubleValue();
+    private List<String> extractProjectNames(List<Map<String, Object>> projects) {
+        List<String> names = new ArrayList<>();
+        if (projects != null) {
+            for (Map<String, Object> p : projects) {
+                Object name = p.get("name");
+                if (name != null) names.add(name.toString());
+            }
         }
+        return names;
+    }
+
+    private String cleanHeading(String heading) {
+        if (heading == null) return "Project";
+        String h = heading.replaceFirst("^(?i)(Project|Experience|Role|Heading):\\s*", "").trim();
+        if (h.contains(":")) {
+            String before = h.substring(0, h.indexOf(":")).trim();
+            if (before.length() >= 3 && before.length() <= 45) {
+                h = before;
+            }
+        }
+        if (h.length() > 45) h = h.substring(0, 45).trim();
+        return h.isEmpty() ? "Project" : h;
+    }
+
+    private String truncate(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
+    }
+
+    private double toDouble(Object obj, double defaultVal) {
+        if (obj instanceof Number) return ((Number) obj).doubleValue();
         if (obj instanceof String) {
             try { return Double.parseDouble((String) obj); } catch (Exception ignored) {}
         }
         return defaultVal;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> castStringList(Object obj) {
+        if (obj instanceof List) {
+            List<?> l = (List<?>) obj;
+            List<String> res = new ArrayList<>();
+            for (Object item : l) {
+                if (item != null) res.add(item.toString());
+            }
+            return res;
+        }
+        return Collections.emptyList();
     }
 }

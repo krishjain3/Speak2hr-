@@ -55,6 +55,20 @@ export const useInterviewStore = create((set, get) => ({
     }
   },
 
+  prevQuestion: () => {
+    const { currentQuestionIndex } = get();
+    if (currentQuestionIndex > 0) {
+      set({ currentQuestionIndex: currentQuestionIndex - 1 });
+    }
+  },
+
+  goToQuestion: (index) => {
+    const { questions } = get();
+    if (index >= 0 && index < questions.length) {
+      set({ currentQuestionIndex: index });
+    }
+  },
+
   addResponse: (response) => {
     set((state) => ({
       responses: [...state.responses, response],

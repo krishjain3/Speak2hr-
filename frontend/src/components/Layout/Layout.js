@@ -92,6 +92,16 @@ function Layout({ userType }) {
     }
   };
 
+  const isAssessmentMode = location.pathname.startsWith('/candidate/ai-interview');
+
+  if (isAssessmentMode) {
+    return (
+      <Box sx={{ minHeight: '100vh', width: '100%', bgcolor: '#f8fafc' }}>
+        <Outlet />
+      </Box>
+    );
+  }
+
   const menuItems = userType === 'admin' ? adminMenuItems : userType === 'hr' ? hrMenuItems : candidateMenuItems;
 
   const handleDrawerToggle = () => {

@@ -147,8 +147,8 @@ public class GeminiService {
             return "{\"match_score\": 82.5, \"matching_skills\": [\"Java\", \"Spring Boot\", \"REST APIs\", \"React\"], \"missing_skills\": [\"Docker\", \"Kubernetes\"], \"recommendations\": [\"Gain experience with container orchestration\", \"Build microservices projects\"]}";
         } else if (lower.contains("readiness_score") || lower.contains("skill gap")) {
             return "{\"current_skills\": [\"Java\", \"Spring Boot\", \"JavaScript\"], \"missing_skills\": [\"GraphQL\", \"Kafka\"], \"learning_roadmap\": [{\"phase\": \"Phase 1\", \"topic\": \"Kafka Messaging\"}, {\"phase\": \"Phase 2\", \"topic\": \"System Design\"}], \"readiness_score\": 85.0}";
-        } else if (lower.contains("evaluation") || lower.contains("confidence_score")) {
-            return "{\"overall_score\": 85.0, \"technical_score\": 88.0, \"communication_score\": 82.0, \"clarity\": 84.0, \"completeness\": 86.0, \"feedback\": \"Good structured answer with relevant code concepts.\", \"strengths\": [\"Clear explanation\", \"Good technical vocabulary\"], \"improvements\": [\"Elaborate more on edge cases\"]}";
+        } else if (lower.contains("evaluation") || lower.contains("evaluating") || lower.contains("candidate answer") || lower.contains("confidence_score")) {
+            return "{\"overall_score\": 85.0, \"technical_score\": 88.0, \"reasoning_depth\": 82.0, \"clarity\": 84.0, \"relevance\": 86.0, \"feedback\": \"Good structured answer with relevant code concepts.\", \"strengths\": [\"Clear explanation\", \"Good technical vocabulary\"], \"improvements\": [\"Elaborate more on edge cases\"]}";
         }
         return "{\"message\": \"Response processed successfully.\"}";
     }

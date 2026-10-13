@@ -161,7 +161,7 @@ export const resumeRagAPI = {
       candidate_email: data.candidateEmail || '',
       num_questions: data.numQuestions || 10,
       difficulty: data.difficulty || 'medium',
-      focus_area: data.focusArea || null,
+      focus_area: data.focusArea ? (Array.isArray(data.focusArea) ? data.focusArea : [data.focusArea]) : [],
     });
   },
 
