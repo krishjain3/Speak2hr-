@@ -32,8 +32,19 @@ public class ResumeService {
     }
 
     public Map<String, Object> uploadAndParseResume(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("No resume file uploaded or file is empty.");
+        }
         String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "resume.pdf";
+        String lower = filename.toLowerCase();
+        if (!lower.endsWith(".pdf") && !lower.endsWith(".txt") && !lower.endsWith(".docx")) {
+            throw new IllegalArgumentException("Unsupported file type. Only PDF, TXT, and DOCX files are allowed.");
+        }
+
         String extractedText = extractTextFromFile(file, filename);
+        if (extractedText == null || extractedText.trim().isEmpty()) {
+            throw new IllegalArgumentException("Could not extract readable text from the uploaded resume file.");
+        }
 
         String prompt = "Analyze the following resume text and extract candidate information in JSON format with fields: " +
                 "candidate_name (string), email (string), phone (string), skills (list of strings), experience_years (number), " +

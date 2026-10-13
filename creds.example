@@ -1,0 +1,9 @@
+# Speak2HR Example Credentials (placeholders only)
+# DO NOT commit real credentials to source control.
+# Copy to 'creds' for local offline testing if needed.
+
+hr@example.com
+your_hr_password_here
+
+candidate@example.com
+your_candidate_password_here

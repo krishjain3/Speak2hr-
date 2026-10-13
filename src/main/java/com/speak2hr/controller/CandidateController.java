@@ -106,8 +106,8 @@ public class CandidateController {
     @GetMapping("/candidates/{user_id}/reports")
     public ResponseEntity<List<Map<String, Object>>> getCandidateReports(@PathVariable("user_id") String userId) {
         List<Map<String, Object>> reports = List.of(
-                Map.of("report_id", "rep_1", "title", "Mock Interview Assessment", "score", 86.5, "date", "2026-09-05", "download_url", "/api/interview/download-report/report_sample.pdf"),
-                Map.of("report_id", "rep_2", "title", "Technical Skill Evaluation", "score", 89.0, "date", "2026-09-02", "download_url", "/api/interview/download-report/report_sample.pdf")
+                Map.of("id", "rep_1", "report_id", "rep_1", "title", "Mock Interview Assessment", "type", "AI Interview", "overallScore", 86.5, "score", 86.5, "date", "2026-09-05", "download_url", "/api/interview/download-report/report_sample.pdf"),
+                Map.of("id", "rep_2", "report_id", "rep_2", "title", "Technical Skill Evaluation", "type", "AI Interview", "overallScore", 89.0, "score", 89.0, "date", "2026-09-02", "download_url", "/api/interview/download-report/report_sample.pdf")
         );
         return ResponseEntity.ok(reports);
     }

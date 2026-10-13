@@ -49,7 +49,8 @@ def init_db():
             email TEXT PRIMARY KEY,
             otp TEXT NOT NULL,
             expires_at TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            attempts INTEGER DEFAULT 0
         )
     ''')
     
@@ -216,6 +217,7 @@ def init_db():
     
     add_columns_if_missing(conn, "users", users_new_cols)
     add_columns_if_missing(conn, "video_sessions", sessions_new_cols)
+    add_columns_if_missing(conn, "otps", {"attempts": "INTEGER DEFAULT 0"})
     
     # Indexes for performance optimization
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_assessments_user_id ON assessments(user_id)")

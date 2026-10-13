@@ -78,36 +78,72 @@ public class InterviewService {
             MultipartFile videoFile,
             MultipartFile audioFile
     ) {
-        String prompt = "Evaluate candidate interview answer for question: '" + question + "'. " +
-                "Expected keywords: " + expectedKeywordsJson + ". " +
-                "Return JSON with fields: overall_score (number 0-100), technical_score (number 0-100), " +
-                "communication_score (number 0-100), clarity (number 0-100), completeness (number 0-100), " +
-                "feedback (string), strengths (list of strings), improvements (list of strings).";
-
-        String aiResponse = geminiService.generateContent(prompt);
-        String jsonText = geminiService.extractJsonFromResponse(aiResponse);
+        boolean hasAudio = audioFile != null && !audioFile.isEmpty();
+        boolean hasVideo = videoFile != null && !videoFile.isEmpty();
 
         Map<String, Object> evalResult;
-        try {
-            evalResult = objectMapper.readValue(jsonText, Map.class);
-        } catch (Exception e) {
-            logger.warn("Failed to parse evaluation JSON. Using default score structure.", e);
+
+        if (!hasAudio && !hasVideo) {
             evalResult = new HashMap<>();
-            evalResult.put("overall_score", 85.0);
-            evalResult.put("technical_score", 86.0);
-            evalResult.put("communication_score", 84.0);
-            evalResult.put("clarity", 85.0);
-            evalResult.put("completeness", 85.0);
-            evalResult.put("feedback", "Demonstrated clear understanding of core concepts.");
-            evalResult.put("strengths", List.of("Structured response", "Good technical domain knowledge"));
-            evalResult.put("improvements", List.of("Provide specific project code examples"));
+            evalResult.put("overall_score", 0.0);
+            evalResult.put("technical_score", 0.0);
+            evalResult.put("communication_score", 0.0);
+            evalResult.put("clarity", 0.0);
+            evalResult.put("completeness", 0.0);
+            evalResult.put("feedback", "No candidate audio or video response was submitted for this question.");
+            evalResult.put("strengths", List.of());
+            evalResult.put("improvements", List.of("Please provide a spoken or recorded response to receive evaluation."));
+            evalResult.put("is_fallback", false);
+            evalResult.put("evaluation_status", "NO_ANSWER");
+        } else {
+            String prompt = "Evaluate candidate interview answer for question: '" + question + "'. " +
+                    "Expected keywords: " + expectedKeywordsJson + ". " +
+                    "Return JSON with fields: overall_score (number 0-100), technical_score (number 0-100), " +
+                    "communication_score (number 0-100), clarity (number 0-100), completeness (number 0-100), " +
+                    "feedback (string), strengths (list of strings), improvements (list of strings).";
+
+            try {
+                String aiResponse = geminiService.generateContent(prompt);
+                String jsonText = geminiService.extractJsonFromResponse(aiResponse);
+                evalResult = objectMapper.readValue(jsonText, Map.class);
+
+                // Validate and clamp all scores within [0.0, 100.0]
+                for (String scoreKey : List.of("overall_score", "technical_score", "communication_score", "clarity", "completeness")) {
+                    Object val = evalResult.get(scoreKey);
+                    double score = 0.0;
+                    if (val instanceof Number) {
+                        score = Math.max(0.0, Math.min(100.0, ((Number) val).doubleValue()));
+                    }
+                    evalResult.put(scoreKey, Math.round(score * 10.0) / 10.0);
+                }
+                evalResult.put("is_fallback", false);
+                evalResult.put("evaluation_status", "COMPLETED");
+            } catch (Exception e) {
+                logger.warn("Automated AI evaluation failed for question {}. Recording fallback.", questionId, e);
+                evalResult = new HashMap<>();
+                evalResult.put("overall_score", 0.0);
+                evalResult.put("technical_score", 0.0);
+                evalResult.put("communication_score", 0.0);
+                evalResult.put("clarity", 0.0);
+                evalResult.put("completeness", 0.0);
+                evalResult.put("feedback", "AI evaluation service was temporarily unavailable. Score could not be determined automatically.");
+                evalResult.put("strengths", List.of());
+                evalResult.put("improvements", List.of("Automated scoring incomplete. Manual HR review required."));
+                evalResult.put("is_fallback", true);
+                evalResult.put("evaluation_status", "FALLBACK");
+            }
         }
 
         evalResult.put("session_id", sessionId);
         evalResult.put("question_id", questionId);
         evalResult.put("question", question);
 
-        sessionEvaluations.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(evalResult);
+        // Deduplicate repeated question submissions for the same session
+        List<Map<String, Object>> evals = sessionEvaluations.computeIfAbsent(sessionId, k -> Collections.synchronizedList(new ArrayList<>()));
+        synchronized (evals) {
+            evals.removeIf(e -> Objects.equals(e.get("question_id"), questionId));
+            evals.add(evalResult);
+        }
 
         return evalResult;
     }
@@ -117,22 +153,47 @@ public class InterviewService {
         Map<String, Object> meta = sessionMetadata.getOrDefault(sessionId, Map.of());
 
         double totalScore = 0.0;
+        double totalTech = 0.0;
+        double totalComm = 0.0;
+        int validCount = 0;
+        boolean hasFallback = false;
+
         for (Map<String, Object> ev : evals) {
+            Boolean isFallback = (Boolean) ev.get("is_fallback");
+            if (Boolean.TRUE.equals(isFallback)) {
+                hasFallback = true;
+            }
             Object s = ev.get("overall_score");
             if (s instanceof Number) {
                 totalScore += ((Number) s).doubleValue();
             }
+            Object t = ev.get("technical_score");
+            if (t instanceof Number) {
+                totalTech += ((Number) t).doubleValue();
+            }
+            Object c = ev.get("communication_score");
+            if (c instanceof Number) {
+                totalComm += ((Number) c).doubleValue();
+            }
+            validCount++;
         }
-        double avgScore = evals.isEmpty() ? 0.0 : Math.round((totalScore / evals.size()) * 10.0) / 10.0;
+        double avgScore = validCount == 0 ? 0.0 : Math.round((totalScore / validCount) * 10.0) / 10.0;
+        double avgTech = validCount == 0 ? 0.0 : Math.round((totalTech / validCount) * 10.0) / 10.0;
+        double avgComm = validCount == 0 ? 0.0 : Math.round((totalComm / validCount) * 10.0) / 10.0;
+
+        String status = evals.isEmpty() ? "INCOMPLETE" : (hasFallback ? "PARTIAL_FALLBACK" : "COMPLETED");
 
         Map<String, Object> summary = new HashMap<>();
         summary.put("session_id", sessionId);
         summary.put("candidate_name", meta.getOrDefault("candidate_name", "Candidate"));
         summary.put("target_role", meta.getOrDefault("target_role", "Software Engineer"));
         summary.put("overall_score", avgScore);
+        summary.put("technical_score", avgTech);
+        summary.put("communication_score", avgComm);
         summary.put("total_questions_evaluated", evals.size());
         summary.put("evaluations", evals);
-        summary.put("status", "completed");
+        summary.put("is_fallback", hasFallback);
+        summary.put("status", status);
 
         return summary;
     }
@@ -141,6 +202,16 @@ public class InterviewService {
         String filename = "report_" + request.getSession_id() + ".pdf";
         File dir = new File("reports");
         if (!dir.exists()) dir.mkdirs();
+
+        Map<String, Object> summary = getSessionSummary(request.getSession_id());
+        double overallScore = 0.0;
+        if (summary.get("overall_score") instanceof Number) {
+            overallScore = ((Number) summary.get("overall_score")).doubleValue();
+        }
+        String status = String.valueOf(summary.getOrDefault("status", "COMPLETED"));
+        String displayStatus = "PARTIAL_FALLBACK".equals(status) ? "Partial Evaluation (Fallback Detected)" :
+                ("INCOMPLETE".equals(status) ? "Incomplete Assessment" :
+                (overallScore >= 70.0 ? "Evaluation Completed (Pass)" : "Evaluation Completed (Needs Improvement)"));
 
         File pdfFile = new File(dir, filename);
         try (PDDocument document = new PDDocument()) {
@@ -161,9 +232,9 @@ public class InterviewService {
                 contentStream.newLineAtOffset(0, -20);
                 contentStream.showText("Session ID: " + request.getSession_id());
                 contentStream.newLineAtOffset(0, -20);
-                contentStream.showText("Status: Evaluation Completed (Pass)");
+                contentStream.showText("Status: " + displayStatus);
                 contentStream.newLineAtOffset(0, -20);
-                contentStream.showText("Overall Performance Score: 85.0 / 100");
+                contentStream.showText("Overall Performance Score: " + overallScore + " / 100");
                 contentStream.endText();
             }
 

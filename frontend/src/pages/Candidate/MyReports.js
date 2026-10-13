@@ -133,6 +133,7 @@ function MyReports() {
         const summary = location.state.summary;
         const exists = fetchedReports.find(r => r.sessionId === location.state.sessionId);
         if (!exists) {
+          const isFallback = Boolean(summary.is_fallback || summary.status === 'PARTIAL_FALLBACK' || summary.status === 'FALLBACK');
           const newReport = {
             id: location.state.sessionId,
             sessionId: location.state.sessionId,
@@ -143,9 +144,10 @@ function MyReports() {
             communicationScore: normalizeScore(summary.communication_score ?? summary.average_clarity ?? 0),
             behavioralScore: normalizeScore(summary.behavioral_score ?? summary.average_relevance ?? 0),
             emotionScore: normalizeScore(summary.emotion_score ?? summary.average_confidence ?? 0),
-            rating: getRating(summary.overall_score ?? summary.average_score ?? 0),
+            rating: isFallback ? 'Needs Review' : getRating(summary.overall_score ?? summary.average_score ?? 0),
             questionsAnswered: summary.total_questions || summary.questions_answered || 5,
-            status: 'completed',
+            status: isFallback ? 'partial_fallback' : 'completed',
+            isFallback: isFallback,
             evaluations: summary.evaluations || [],
             feedback: summary.feedback || summary.recommendation || '',
           };
@@ -155,13 +157,18 @@ function MyReports() {
         }
       }
       
-      setReports(finalReports.map(r => ({ ...r, overallScore: normalizeScore(r.overallScore) })));
+      setReports(finalReports.map(r => ({
+        ...r,
+        overallScore: normalizeScore(r.overallScore ?? r.score ?? 0),
+        rating: r.isFallback ? 'Needs Review' : getRating(r.overallScore ?? r.score ?? 0)
+      })));
       setWeeklyReports(calculateWeeklySummary(finalReports));
     } catch (err) {
       console.error('Failed to load reports from backend:', err);
       let storedReports = getStoredReports();
       if (location.state?.summary && location.state?.sessionId) {
         const summary = location.state.summary;
+        const isFallback = Boolean(summary.is_fallback || summary.status === 'PARTIAL_FALLBACK' || summary.status === 'FALLBACK');
         const newReport = {
           id: Date.now(),
           sessionId: location.state.sessionId,
@@ -172,9 +179,10 @@ function MyReports() {
           communicationScore: normalizeScore(summary.communication_score ?? summary.average_clarity ?? 0),
           behavioralScore: normalizeScore(summary.behavioral_score ?? summary.average_relevance ?? 0),
           emotionScore: normalizeScore(summary.emotion_score ?? summary.average_confidence ?? 0),
-          rating: getRating(summary.overall_score ?? summary.average_score ?? 0),
+          rating: isFallback ? 'Needs Review' : getRating(summary.overall_score ?? summary.average_score ?? 0),
           questionsAnswered: summary.total_questions || summary.questions_answered || 5,
-          status: 'completed',
+          status: isFallback ? 'partial_fallback' : 'completed',
+          isFallback: isFallback,
           evaluations: summary.evaluations || [],
           feedback: summary.feedback || summary.recommendation || '',
         };
@@ -182,7 +190,11 @@ function MyReports() {
         setSelectedReport(newReport);
         setDetailsOpen(true);
       }
-      setReports(storedReports.map(r => ({ ...r, overallScore: normalizeScore(r.overallScore) })));
+      setReports(storedReports.map(r => ({
+        ...r,
+        overallScore: normalizeScore(r.overallScore ?? r.score ?? 0),
+        rating: r.isFallback ? 'Needs Review' : getRating(r.overallScore ?? r.score ?? 0)
+      })));
       setWeeklyReports(calculateWeeklySummary(storedReports));
     } finally {
       setLoading(false);
@@ -192,13 +204,6 @@ function MyReports() {
   useEffect(() => {
     fetchReports();
   }, [user?.id, location.state]);
-
-  const getRating = (score) => {
-    if (score >= 0.85) return 'Excellent';
-    if (score >= 0.70) return 'Good';
-    if (score >= 0.50) return 'Average';
-    return 'Needs Improvement';
-  };
 
   const calculateWeeklySummary = (reports) => {
     if (reports.length === 0) return [];

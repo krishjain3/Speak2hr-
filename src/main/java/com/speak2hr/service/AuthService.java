@@ -31,17 +31,31 @@ public class AuthService {
 
     private final Map<String, User> inMemoryUsers = new ConcurrentHashMap<>();
     private final Map<String, Otp> inMemoryOtps = new ConcurrentHashMap<>();
+    private final Map<String, Integer> otpAttempts = new ConcurrentHashMap<>();
 
     public AuthService(
             UserRepository userRepository,
             OtpRepository otpRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${jwt.secret:speak2hr_secret_key_for_jwt_token_generation_2026_very_secure_string_key}") String jwtSecret
+            @Value("${jwt.secret:}") String jwtSecret,
+            @Value("${spring.profiles.active:}") String activeProfile
     ) {
         this.userRepository = userRepository;
         this.otpRepository = otpRepository;
         this.passwordEncoder = passwordEncoder;
-        this.jwtSecretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+
+        boolean isProduction = "production".equalsIgnoreCase(activeProfile) ||
+                "prod".equalsIgnoreCase(activeProfile) ||
+                "production".equalsIgnoreCase(System.getenv("ENVIRONMENT"));
+
+        if (jwtSecret != null && jwtSecret.trim().length() >= 32) {
+            this.jwtSecretKey = Keys.hmacShaKeyFor(jwtSecret.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } else if (isProduction) {
+            throw new IllegalStateException("Required JWT signing secret (jwt.secret / JWT_SECRET) is missing or too short in production environment!");
+        } else {
+            logger.warn("No valid JWT signing secret configured in application properties. Using secure ephemeral 256-bit key for local development.");
+            this.jwtSecretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
 
         seedInMemoryDefaults();
     }
@@ -111,14 +125,13 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         User user = findUserByEmail(request.getEmail());
         if (user == null) {
-            throw new RuntimeException("Invalid email or password");
+            throw new org.springframework.security.authentication.BadCredentialsException("Invalid email or password");
         }
 
-        boolean matches = passwordEncoder.matches(request.getPassword(), user.getPassword())
-                || request.getPassword().equals(user.getPassword());
+        boolean matches = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!matches) {
-            throw new RuntimeException("Invalid email or password");
+            throw new org.springframework.security.authentication.BadCredentialsException("Invalid email or password");
         }
 
         user.setLastLogin(Instant.now().toString());
@@ -168,18 +181,42 @@ public class AuthService {
 
         Otp otp = new Otp(request.getEmail(), otpCode, expiresAt, createdAt);
         inMemoryOtps.put(request.getEmail(), otp);
+        otpAttempts.put(request.getEmail(), 0);
 
         return Map.of(
                 "success", true,
-                "message", "Verification code sent to your email",
-                "otp_debug", otpCode
+                "message", "Verification code sent to your email"
         );
     }
 
     public Map<String, Object> resetPassword(ResetPasswordRequest request) {
         Otp otp = inMemoryOtps.get(request.getEmail());
-        if (otp == null || !otp.getOtp().equals(request.getVerificationCode())) {
-            throw new RuntimeException("Invalid verification code or email");
+        if (otp == null) {
+            throw new RuntimeException("No verification code found. Please request a new code.");
+        }
+
+        int attempts = otpAttempts.getOrDefault(request.getEmail(), 0);
+        if (attempts >= 5) {
+            inMemoryOtps.remove(request.getEmail());
+            otpAttempts.remove(request.getEmail());
+            throw new RuntimeException("Too many invalid attempts. Please request a new verification code.");
+        }
+
+        // Validate expiration
+        try {
+            if (Instant.parse(otp.getExpiresAt()).isBefore(Instant.now())) {
+                inMemoryOtps.remove(request.getEmail());
+                otpAttempts.remove(request.getEmail());
+                throw new RuntimeException("Verification code has expired.");
+            }
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("expired")) throw e;
+        }
+
+        // Validate matching OTP code
+        if (!otp.getOtp().equals(request.getVerificationCode())) {
+            otpAttempts.put(request.getEmail(), attempts + 1);
+            throw new RuntimeException("Invalid verification code");
         }
 
         User user = findUserByEmail(request.getEmail());
@@ -190,7 +227,9 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         saveUser(user);
 
+        // One-time-use invalidation
         inMemoryOtps.remove(request.getEmail());
+        otpAttempts.remove(request.getEmail());
         return Map.of("success", true, "message", "Password reset successfully");
     }
 
@@ -245,5 +284,17 @@ public class AuthService {
         map.put("designation", user.getDesignation());
         map.put("department", user.getDepartment());
         return map;
+    }
+
+    public io.jsonwebtoken.Claims validateAndGetClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(jwtSecretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public Key getJwtSecretKey() {
+        return jwtSecretKey;
     }
 }

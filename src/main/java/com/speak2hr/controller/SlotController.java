@@ -55,7 +55,10 @@ public class SlotController {
     }
 
     @PostMapping("/cancel/{slot_id}")
-    public ResponseEntity<Map<String, Object>> cancelSlot(@PathVariable("slot_id") String slotId, @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(slotService.cancelSlot(slotId, request));
+    public ResponseEntity<Map<String, Object>> cancelSlot(
+            @PathVariable("slot_id") String slotId,
+            @RequestBody(required = false) Map<String, Object> request
+    ) {
+        return ResponseEntity.ok(slotService.cancelSlot(slotId, request != null ? request : Map.of()));
     }
 }

@@ -68,22 +68,49 @@ public class AssessmentService {
     public AssessmentResult submitAssessment(AssessmentSubmission submission) {
         Assessment assessment = inMemoryAssessments.get(submission.getAssessment_id());
         if (assessment == null) {
+            try {
+                assessment = assessmentRepository.findById(submission.getAssessment_id()).orElse(null);
+            } catch (Exception ignored) {}
+        }
+        if (assessment == null) {
             assessment = new Assessment();
             assessment.setAssessmentId(submission.getAssessment_id());
             assessment.setUserId(submission.getUser_id());
             assessment.setTotalQuestions(10);
         }
 
-        int total = assessment.getTotalQuestions() != null ? assessment.getTotalQuestions() : 10;
-        int correct = (int) Math.round(total * 0.85);
-        double percentage = Math.round(((double) correct / total) * 100.0 * 10.0) / 10.0;
+        List<Map<String, Object>> questions = assessment.getQuestions();
+        int total = (questions != null && !questions.isEmpty()) ? questions.size() :
+                (assessment.getTotalQuestions() != null ? assessment.getTotalQuestions() : 10);
+        int correct = 0;
+        Map<String, Object> answers = submission.getAnswers();
+
+        if (questions != null && !questions.isEmpty() && answers != null) {
+            for (Map<String, Object> q : questions) {
+                String qId = String.valueOf(q.get("question_id"));
+                Object correctOpt = q.get("correct_option");
+                Object userAns = answers.get(qId);
+                if (userAns == null && qId.startsWith("q_")) {
+                    userAns = answers.get(qId.substring(2));
+                }
+                if (userAns != null && correctOpt != null &&
+                        String.valueOf(userAns).trim().equalsIgnoreCase(String.valueOf(correctOpt).trim())) {
+                    correct++;
+                }
+            }
+        }
+
+        double percentage = total > 0 ? Math.round(((double) correct / total) * 100.0 * 10.0) / 10.0 : 0.0;
 
         assessment.setCorrectAnswers(correct);
         assessment.setScorePercentage(percentage);
+        double accuracy = percentage;
+        double problemSolving = Math.max(0.0, Math.min(100.0, percentage >= 50.0 ? percentage + 2.0 : percentage));
+        double speed = Math.max(0.0, Math.min(100.0, percentage >= 50.0 ? percentage - 3.0 : percentage));
         assessment.setCategoryBreakdown(Map.of(
-                "Technical Accuracy", 88.0,
-                "Problem Solving", 85.0,
-                "Speed & Efficiency", 82.0
+                "Technical Accuracy", Math.round(accuracy * 10.0) / 10.0,
+                "Problem Solving", Math.round(problemSolving * 10.0) / 10.0,
+                "Speed & Efficiency", Math.round(speed * 10.0) / 10.0
         ));
 
         inMemoryAssessments.put(assessment.getAssessmentId(), assessment);

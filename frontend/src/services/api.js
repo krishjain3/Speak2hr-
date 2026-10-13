@@ -522,7 +522,7 @@ const initializeAdminData = () => {
 
     filteredUsers.unshift(newAdmin);
     setStoredData('admin_users', filteredUsers);
-    console.log('✅ Admin user initialized with credentials: admin@company.com / admin123');
+    console.log('✅ Admin user initialized');
   } else {
     console.log('✅ Admin user already exists');
   }

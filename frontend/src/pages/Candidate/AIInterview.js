@@ -69,30 +69,42 @@ function AIInterview() {
     resetInterview,
   } = useInterviewStore();
 
-  const isRag = Boolean(location.state?.isRag);
-  const ragSessionId = location.state?.ragSessionId;
-  const initialRagQuestions = location.state?.questions;
-  const initialMode = location.state?.answerMode || 'text';
+  const getStoredSession = () => {
+    try {
+      const saved = sessionStorage.getItem('speak2hr_interview_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  };
+  const cachedSession = getStoredSession();
 
+  const isRag = Boolean(location.state?.isRag ?? cachedSession?.isRag);
+  const ragSessionId = location.state?.ragSessionId || cachedSession?.ragSessionId;
+  const initialRagQuestions = location.state?.questions || cachedSession?.questions;
+  const initialMode = location.state?.answerMode || cachedSession?.answerMode || 'text';
+  const config = location.state?.config || cachedSession?.config;
+
+  const audioStreamRef = useRef(null);
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const audioChunksRef = useRef([]);
 
-  const [sessionId] = useState(ragSessionId || `session_${Date.now()}`);
-  const [isLoading, setIsLoading] = useState(!isRag);
+  const [sessionId] = useState(ragSessionId || location.state?.sessionId || cachedSession?.sessionId || `session_${Date.now()}`);
+  const [isLoading, setIsLoading] = useState(!isRag && !cachedSession?.questions?.length);
   const [responseMode, setResponseMode] = useState(initialMode);
 
   // Current editor response & draft storage for each question index
-  const [textAnswer, setTextAnswer] = useState('');
-  const [draftAnswers, setDraftAnswers] = useState({});
+  const [textAnswer, setTextAnswer] = useState(cachedSession?.draftAnswers?.[cachedSession?.currentQuestionIndex || 0] || '');
+  const [draftAnswers, setDraftAnswers] = useState(cachedSession?.draftAnswers || {});
 
   // Question palette statuses: { [index]: 'answered' | 'skipped' }
-  const [questionStatuses, setQuestionStatuses] = useState({});
+  const [questionStatuses, setQuestionStatuses] = useState(cachedSession?.questionStatuses || {});
 
   // Overall test countdown timer (e.g., 20 mins)
-  const [testTimeLeft, setTestTimeLeft] = useState(20 * 60);
+  const [testTimeLeft, setTestTimeLeft] = useState(cachedSession?.testTimeLeft || 20 * 60);
 
   // Video recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -133,12 +145,44 @@ function AIInterview() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  const config = location.state?.config;
+  // Persist session to sessionStorage to survive page refreshes
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      try {
+        sessionStorage.setItem('speak2hr_interview_session', JSON.stringify({
+          sessionId,
+          isRag,
+          ragSessionId,
+          questions,
+          config,
+          answerMode: responseMode,
+          draftAnswers,
+          questionStatuses,
+          testTimeLeft,
+          currentQuestionIndex,
+        }));
+      } catch (err) {
+        console.warn('Failed to cache interview session:', err);
+      }
+    }
+  }, [sessionId, isRag, ragSessionId, questions, config, responseMode, draftAnswers, questionStatuses, testTimeLeft, currentQuestionIndex]);
 
   // Initialize questions
   useEffect(() => {
     if (isRag && initialRagQuestions && initialRagQuestions.length > 0) {
       setQuestions(initialRagQuestions);
+      if (cachedSession?.currentQuestionIndex) {
+        goToQuestion(cachedSession.currentQuestionIndex);
+      }
+      setIsLoading(false);
+      return;
+    }
+
+    if (cachedSession?.questions && cachedSession.questions.length > 0) {
+      setQuestions(cachedSession.questions);
+      if (cachedSession?.currentQuestionIndex) {
+        goToQuestion(cachedSession.currentQuestionIndex);
+      }
       setIsLoading(false);
       return;
     }
@@ -173,6 +217,20 @@ function AIInterview() {
     generateQuestions();
 
     return () => {
+      // Clean up media streams and recorders on component unmount
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+      if (webcamRef.current?.stream) {
+        webcamRef.current.stream.getTracks().forEach((track) => track.stop());
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop(); } catch (ignored) {}
+      }
+      if (audioRecorderRef.current && audioRecorderRef.current.state !== 'inactive') {
+        try { audioRecorderRef.current.stop(); } catch (ignored) {}
+      }
       resetInterview();
     };
   }, []);
@@ -195,11 +253,12 @@ function AIInterview() {
     audioChunksRef.current = [];
     setRecordedBlob(null);
     setAudioBlob(null);
+    setError('');
 
     try {
       const stream = webcamRef.current?.stream;
       if (!stream) {
-        setError('Camera not available');
+        setError('Camera stream not available. Please ensure camera permissions are granted.');
         return;
       }
 
@@ -216,7 +275,15 @@ function AIInterview() {
         setRecordedBlob(blob);
       };
 
+      // Clean up any previously opened audio stream tracks
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = audioStream;
+
       audioRecorderRef.current = new MediaRecorder(audioStream, {
         mimeType: 'audio/webm',
       });
@@ -233,18 +300,36 @@ function AIInterview() {
       mediaRecorderRef.current.start();
       audioRecorderRef.current.start();
       setIsRecording(true);
+      setError('');
     } catch (err) {
-      setError('Failed to start recording. Please check camera/mic permissions.');
-      console.error(err);
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Microphone or Camera access was denied. Please allow device permissions in your browser.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError('No microphone or camera device found. Please connect your media devices.');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        setError('Microphone or Camera is currently in use by another application.');
+      } else {
+        setError(`Recording failed to start: ${err.message || 'Media device error'}`);
+      }
+      console.error('[AIInterview] startRecording error:', err);
     }
   }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+      try { mediaRecorderRef.current.stop(); } catch (ignored) {}
     }
     if (audioRecorderRef.current && audioRecorderRef.current.state !== 'inactive') {
-      audioRecorderRef.current.stop();
+      try { audioRecorderRef.current.stop(); } catch (ignored) {}
+    }
+    // Turn off microphone tracks immediately so browser mic indicator shuts off
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
     }
     setIsRecording(false);
   }, []);
@@ -280,8 +365,12 @@ function AIInterview() {
 
   // Submit spoken video/audio response (background processing, no intermediate popup)
   const submitSpokenResponse = async () => {
-    if (!recordedBlob || !audioBlob) {
-      setError('Please record your response first');
+    if (isRecording) {
+      stopRecording();
+    }
+
+    if (!recordedBlob || recordedBlob.size < 100 || !audioBlob || audioBlob.size < 100) {
+      setError('Recording appears incomplete or empty. Please record your spoken response before submitting.');
       return;
     }
 
@@ -489,9 +578,11 @@ function AIInterview() {
         : await interviewAPI.getSessionSummary(sessionId);
 
       setSessionResults(summary.data);
+      sessionStorage.removeItem('speak2hr_interview_session');
       navigate('/candidate/reports', { state: { sessionId, summary: summary.data } });
     } catch (err) {
       console.error('[AIInterview] Failed to load session summary:', err);
+      sessionStorage.removeItem('speak2hr_interview_session');
       navigate('/candidate/reports');
     } finally {
       setIsFinalizing(false);

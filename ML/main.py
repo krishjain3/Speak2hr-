@@ -6,7 +6,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 warnings.filterwarnings('ignore')
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect 
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -183,11 +183,14 @@ app = FastAPI(
     version="3.0.0"
 )
 
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000")
+allowed_origins = [o.strip() for o in cors_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -1881,6 +1884,91 @@ def send_slot_cancellation_email(candidate_email: str, candidate_name: str, hr_e
         logger.error(f"Failed to send cancellation emails: {str(e)}")
         return False
 
+# ==================== AUTH UTILITIES & SECURITY ====================
+import hashlib
+import hmac
+import secrets
+
+def hash_password(password: str) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with random 16-byte salt and 100k iterations"""
+    salt = secrets.token_hex(16)
+    iterations = 100000
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations)
+    return f"pbkdf2_sha256${iterations}${salt}${hash_bytes.hex()}"
+
+def verify_password(plain_password: str, hashed_or_plain: str) -> bool:
+    """Verify password against PBKDF2 hash, with backward-compatibility for legacy plaintext"""
+    if not hashed_or_plain:
+        return False
+    if hashed_or_plain.startswith("pbkdf2_sha256$"):
+        parts = hashed_or_plain.split("$")
+        if len(parts) == 4:
+            _, iter_str, salt, stored_hash = parts
+            try:
+                computed = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), int(iter_str)).hex()
+                return hmac.compare_digest(computed, stored_hash)
+            except Exception:
+                return False
+    # Legacy plaintext comparison fallback (auto-upgrades on login)
+    return hmac.compare_digest(plain_password, hashed_or_plain)
+
+def base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
+
+def base64url_decode(s: str) -> bytes:
+    padding = "=" * (4 - (len(s) % 4)) if len(s) % 4 != 0 else ""
+    return base64.urlsafe_b64decode((s + padding).encode("utf-8"))
+
+def create_jwt_token(payload: dict, secret: Optional[str] = None, expires_in_seconds: int = 86400) -> str:
+    """Generate signed HS256 JWT token with expiration"""
+    secret = secret or os.getenv("JWT_SECRET", "speak2hr_default_dev_secret_key_2026_very_secure")
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload_copy = payload.copy()
+    now = int(time.time())
+    payload_copy.setdefault("iat", now)
+    payload_copy.setdefault("exp", now + expires_in_seconds)
+
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_b64 = base64url_encode(json.dumps(payload_copy, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    sig = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(sig)
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
+
+def verify_jwt_token(token: str, secret: Optional[str] = None) -> dict:
+    """Verify and decode HS256 JWT token"""
+    secret = secret or os.getenv("JWT_SECRET", "speak2hr_default_dev_secret_key_2026_very_secure")
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise ValueError("Invalid token structure")
+    header_b64, payload_b64, sig_b64 = parts
+    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    expected_sig = base64url_encode(hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest())
+    if not hmac.compare_digest(sig_b64, expected_sig):
+        raise ValueError("Invalid token signature")
+    payload = json.loads(base64url_decode(payload_b64).decode("utf-8"))
+    if "exp" in payload and time.time() > payload["exp"]:
+        raise ValueError("Token has expired")
+    return payload
+
+def get_current_user_token(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    """Dependency to verify JWT token on protected endpoints"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    token = authorization[7:].strip()
+    try:
+        return verify_jwt_token(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
+
+def require_admin_user(current_user: dict = Depends(get_current_user_token)) -> dict:
+    """Dependency to verify admin privileges on protected admin endpoints"""
+    if str(current_user.get("role", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+    return current_user
+
 # ==================== API ENDPOINTS - AUTH ====================
 
 @app.post("/api/auth/register")
@@ -1896,14 +1984,22 @@ async def register_user(request: RegisterRequest):
         status = 'active'
         registered_date = datetime.now(timezone.utc).isoformat()
         last_login = registered_date
+        hashed_password = hash_password(request.password)
         
         cursor.execute('''
             INSERT INTO users (id, name, email, password, role, target_role, skills, experience_years, status, registered_date, last_login)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (user_id, request.name, request.email, request.password, request.role, request.targetRole, 
+        ''', (user_id, request.name, request.email, hashed_password, request.role, request.targetRole, 
               json.dumps(request.skills) if request.skills else '[]', request.experienceYears, status, registered_date, last_login))
         
         conn.commit()
+        
+        token = create_jwt_token({
+            "sub": user_id,
+            "email": request.email,
+            "role": request.role,
+            "name": request.name
+        })
             
         return {
             "user": {
@@ -1915,7 +2011,7 @@ async def register_user(request: RegisterRequest):
                 "skills": request.skills,
                 "experienceYears": request.experienceYears
             },
-            "token": f"mock-jwt-token-{user_id}"
+            "token": token
         }
     except sqlite3.Error as e:
         logger.error(f"DB Error: {e}")
@@ -1928,17 +2024,27 @@ async def login_user(request: LoginRequest):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM users WHERE email=? AND password=?", (request.email, request.password))
+        cursor.execute("SELECT * FROM users WHERE email=?", (request.email,))
         user = cursor.fetchone()
         
-        if not user:
+        if not user or not verify_password(request.password, user['password']):
             raise HTTPException(status_code=401, detail="Invalid email or password")
-            
+
+        # Transparently upgrade legacy plaintext passwords to PBKDF2 hash on successful login
+        if not str(user['password']).startswith("pbkdf2_sha256$"):
+            cursor.execute("UPDATE users SET password=? WHERE id=?", (hash_password(request.password), user['id']))
 
         # Update last login
         cursor.execute("UPDATE users SET last_login=? WHERE id=?", (datetime.now(timezone.utc).isoformat(), user['id']))
         conn.commit()
         
+        token = create_jwt_token({
+            "sub": user['id'],
+            "email": user['email'],
+            "role": user['role'],
+            "name": user['name']
+        })
+
         return {
             "user": {
                 "id": user['id'],
@@ -1949,7 +2055,7 @@ async def login_user(request: LoginRequest):
                 "skills": json.loads(user['skills']) if user['skills'] else [],
                 "experienceYears": user['experience_years']
             },
-            "token": f"mock-jwt-token-{user['id']}"
+            "token": token
         }
     finally:
         conn.close()
@@ -1969,10 +2075,10 @@ async def forgot_password(request: ForgotPasswordRequest):
         created_at = datetime.now(timezone.utc).isoformat()
         
         cursor.execute('''
-            INSERT INTO otps (email, otp, expires_at, created_at) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO otps (email, otp, expires_at, created_at, attempts) 
+            VALUES (?, ?, ?, ?, 0)
             ON CONFLICT(email) DO UPDATE SET 
-            otp=excluded.otp, expires_at=excluded.expires_at, created_at=excluded.created_at
+            otp=excluded.otp, expires_at=excluded.expires_at, created_at=excluded.created_at, attempts=0
         ''', (request.email, verification_code, expires_at, created_at))
         conn.commit()
         
@@ -1993,22 +2099,15 @@ async def forgot_password(request: ForgotPasswordRequest):
             server.sendmail(EMAIL_USER, request.email, msg.as_string())
             server.quit()
             email_sent = True
-            logger.info(f"OTP verification email successfully sent to {request.email}")
+            logger.info(f"Password reset verification email sent to {request.email}")
         except Exception as e:
-            logger.error(f"Failed to send OTP via email: {e}")
-            logger.info(f"FALLBACK VERIFICATION OTP FOR {request.email} IS: {verification_code}")
-            
-        # Log to file in reports directory
-        try:
-            os.makedirs(REPORTS_DIR, exist_ok=True)
-            with open(REPORTS_DIR / "email_logs.txt", "a") as log_file:
-                log_file.write(f"[{datetime.now().isoformat()}] OTP to {request.email}: {verification_code} (Sent: {email_sent})\n")
-        except Exception as file_err:
-            logger.error(f"Failed to write OTP to log file: {file_err}")
+            logger.error(f"Failed to send OTP email: {str(e)}")
+            # Do NOT expose OTP in logs or response!
+            raise HTTPException(status_code=500, detail="Failed to send verification email. Please check your email configuration or try again later.")
             
         return {
             "success": True, 
-            "message": "Verification code sent to your email" if email_sent else f"Verification code generated (Fallback: {verification_code})"
+            "message": "Verification code sent to your email"
         }
     finally:
         conn.close()
@@ -2018,30 +2117,44 @@ async def reset_password(request: ResetPasswordRequest):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT otp, expires_at FROM otps WHERE email=?", (request.email,))
+        cursor.execute("SELECT otp, expires_at, attempts FROM otps WHERE email=?", (request.email,))
         otp_record = cursor.fetchone()
         
         if not otp_record:
             raise HTTPException(status_code=400, detail="No verification code found. Please request a new code.")
             
+        # Check attempt limits (max 5 failed attempts)
+        attempts = otp_record['attempts'] if 'attempts' in otp_record.keys() and otp_record['attempts'] is not None else 0
+        if attempts >= 5:
+            cursor.execute("DELETE FROM otps WHERE email=?", (request.email,))
+            conn.commit()
+            raise HTTPException(status_code=400, detail="Too many invalid attempts. Please request a new verification code.")
+
+        # Check expiration
         expires_at = datetime.fromisoformat(otp_record['expires_at'].replace('Z', '+00:00'))
         if datetime.now(timezone.utc) > expires_at:
             cursor.execute("DELETE FROM otps WHERE email=?", (request.email,))
             conn.commit()
             raise HTTPException(status_code=400, detail="Verification code has expired.")
             
+        # Validate matching OTP code
         if otp_record['otp'] != request.verificationCode:
+            cursor.execute("UPDATE otps SET attempts = attempts + 1 WHERE email=?", (request.email,))
+            conn.commit()
             raise HTTPException(status_code=400, detail="Invalid verification code")
             
-        # Update user password
-        cursor.execute("UPDATE users SET password=? WHERE email=?", (request.newPassword, request.email))
+        # Update user password with secure PBKDF2 hash
+        hashed_password = hash_password(request.newPassword)
+        cursor.execute("UPDATE users SET password=? WHERE email=?", (hashed_password, request.email))
         cursor.execute("DELETE FROM otps WHERE email=?", (request.email,))
         
         # Log the reset attempt
         cursor.execute("SELECT id FROM users WHERE email=?", (request.email,))
-        user_id = cursor.fetchone()['id']
-        cursor.execute("INSERT INTO activity_logs (id, user_id, action, timestamp) VALUES (?, ?, ?, ?)",
-                       (str(uuid.uuid4()), user_id, "Password Reset Successful", datetime.now(timezone.utc).isoformat()))
+        user_row = cursor.fetchone()
+        if user_row:
+            user_id = user_row['id']
+            cursor.execute("INSERT INTO activity_logs (id, user_id, action, timestamp) VALUES (?, ?, ?, ?)",
+                           (str(uuid.uuid4()), user_id, "Password Reset Successful", datetime.now(timezone.utc).isoformat()))
                        
         conn.commit()
         return {"success": True, "message": "Password reset successfully"}
@@ -3621,7 +3734,7 @@ async def get_hr_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/users")
-async def get_all_users():
+async def get_all_users(current_user: dict = Depends(require_admin_user)):
     """Get all system users (admin only)"""
     try:
         conn = get_db_connection()
@@ -3635,7 +3748,7 @@ async def get_all_users():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/admin/users/{user_id}")
-async def update_user(user_id: str, user_data: dict):
+async def update_user(user_id: str, user_data: dict, current_user: dict = Depends(require_admin_user)):
     """Update user information (admin only)"""
     try:
         conn = get_db_connection()
@@ -3669,7 +3782,7 @@ async def update_user(user_id: str, user_data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/admin/users/{user_id}")
-async def delete_user(user_id: str):
+async def delete_user(user_id: str, current_user: dict = Depends(require_admin_user)):
     """Delete a user (admin only)"""
     try:
         conn = get_db_connection()
@@ -3685,7 +3798,7 @@ async def delete_user(user_id: str):
 
 
 @app.get("/api/admin/stats")
-async def get_system_stats():
+async def get_system_stats(current_user: dict = Depends(require_admin_user)):
     """Get system statistics (admin only)"""
     try:
         conn = get_db_connection()
@@ -4052,7 +4165,7 @@ async def get_all_candidates():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/settings")
-async def get_system_settings():
+async def get_system_settings(current_user: dict = Depends(require_admin_user)):
     """Get system settings (admin only)"""
     try:
         # In a real implementation, fetch from database or config
@@ -4069,7 +4182,7 @@ async def get_system_settings():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/admin/settings")
-async def update_system_settings(settings: dict):
+async def update_system_settings(settings: dict, current_user: dict = Depends(require_admin_user)):
     """Update system settings (admin only)"""
     try:
         # In a real implementation, save to database or config file
