@@ -10,12 +10,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +32,9 @@ public class GeminiService {
 
     @Value("${gemini.model:gemini-2.0-flash}")
     private String modelName;
+
+    // Optional mock generator for testing without incurring API charges
+    private volatile Function<String, String> mockContentGenerator = null;
 
     public GeminiService(
             @Value("${gemini.api.key:}") String primaryKey,
@@ -81,11 +86,42 @@ public class GeminiService {
         } catch (Exception ignored) {}
     }
 
-    public String generateContent(String prompt) {
-        if (apiKeys.isEmpty()) {
-            logger.warn("No Gemini API keys configured. Using offline fallback response generation.");
-            return generateOfflineFallback(prompt);
+    public List<String> getApiKeys() {
+        return Collections.unmodifiableList(apiKeys);
+    }
+
+    public synchronized void addApiKey(String key) {
+        if (key != null && !key.isBlank() && !apiKeys.contains(key)) {
+            apiKeys.add(key);
         }
+    }
+
+    public void setMockContentGenerator(Function<String, String> generator) {
+        this.mockContentGenerator = generator;
+    }
+
+    public void clearMockContentGenerator() {
+        this.mockContentGenerator = null;
+    }
+
+    public String generateContent(String prompt) {
+        if (mockContentGenerator != null) {
+            String mockResult = mockContentGenerator.apply(prompt);
+            if (mockResult != null) {
+                return mockResult;
+            }
+        }
+
+        if (apiKeys.isEmpty()) {
+            logger.error("No Gemini API keys configured. Generation failed.");
+            throw new GeminiApiException(
+                    "No Gemini API key configured. Please set GEMINI_API_KEY in environment or application.properties.",
+                    401
+            );
+        }
+
+        String lastError = "Unknown error";
+        int lastStatusCode = 502;
 
         for (int i = 0; i < apiKeys.size(); i++) {
             String apiKey = apiKeys.get(i);
@@ -112,13 +148,19 @@ public class GeminiService {
                         }
                     }
                 }
+                lastError = "Response returned empty candidates from Gemini API";
+            } catch (HttpStatusCodeException e) {
+                lastStatusCode = e.getStatusCode().value();
+                lastError = "HTTP " + lastStatusCode + ": " + e.getResponseBodyAsString();
+                logger.warn("Gemini API key #{} failed with status {}: {}", i + 1, lastStatusCode, e.getMessage());
             } catch (Exception e) {
-                logger.warn("Gemini API key #{} failed: {}. Retrying with next key...", i + 1, e.getMessage());
+                lastError = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                logger.warn("Gemini API key #{} failed: {}. Retrying with next key...", i + 1, lastError);
             }
         }
 
-        logger.error("All Gemini API keys failed or hit rate limit. Falling back to offline prompt processor.");
-        return generateOfflineFallback(prompt);
+        logger.error("All Gemini API keys failed. Error: {}", lastError);
+        throw new GeminiApiException("Gemini API request failed: " + lastError, lastStatusCode);
     }
 
     public String extractJsonFromResponse(String text) {
@@ -139,17 +181,5 @@ public class GeminiService {
             return matcher.group(1);
         }
         return text;
-    }
-
-    private String generateOfflineFallback(String prompt) {
-        String lower = prompt.toLowerCase();
-        if (lower.contains("match_score") || lower.contains("job match")) {
-            return "{\"match_score\": 82.5, \"matching_skills\": [\"Java\", \"Spring Boot\", \"REST APIs\", \"React\"], \"missing_skills\": [\"Docker\", \"Kubernetes\"], \"recommendations\": [\"Gain experience with container orchestration\", \"Build microservices projects\"]}";
-        } else if (lower.contains("readiness_score") || lower.contains("skill gap")) {
-            return "{\"current_skills\": [\"Java\", \"Spring Boot\", \"JavaScript\"], \"missing_skills\": [\"GraphQL\", \"Kafka\"], \"learning_roadmap\": [{\"phase\": \"Phase 1\", \"topic\": \"Kafka Messaging\"}, {\"phase\": \"Phase 2\", \"topic\": \"System Design\"}], \"readiness_score\": 85.0}";
-        } else if (lower.contains("evaluation") || lower.contains("evaluating") || lower.contains("candidate answer") || lower.contains("confidence_score")) {
-            return "{\"overall_score\": 85.0, \"technical_score\": 88.0, \"reasoning_depth\": 82.0, \"clarity\": 84.0, \"relevance\": 86.0, \"feedback\": \"Good structured answer with relevant code concepts.\", \"strengths\": [\"Clear explanation\", \"Good technical vocabulary\"], \"improvements\": [\"Elaborate more on edge cases\"]}";
-        }
-        return "{\"message\": \"Response processed successfully.\"}";
     }
 }

@@ -30,11 +30,23 @@ public class ResumeChunk {
 
     private String heading;
 
+    @JsonProperty("project_name")
+    private String projectName;
+
     private String content;
 
     private List<String> technologies = new ArrayList<>();
 
     private List<Double> embedding = new ArrayList<>();
+
+    @JsonProperty("embedding_model")
+    private String embeddingModel = "gemini-text-embedding-004";
+
+    @JsonProperty("embedding_version")
+    private String embeddingVersion = "1.0";
+
+    @JsonProperty("embedding_dim")
+    private Integer embeddingDim = 768;
 
     @JsonProperty("created_at")
     private String createdAt = Instant.now().toString();
@@ -53,6 +65,27 @@ public class ResumeChunk {
         this.content = content;
         this.technologies = technologies != null ? technologies : new ArrayList<>();
         this.embedding = embedding != null ? embedding : new ArrayList<>();
+        this.embeddingDim = this.embedding.size();
+        this.createdAt = Instant.now().toString();
+    }
+
+    public ResumeChunk(String id, String resumeId, String candidateId, Integer chunkIndex,
+                       String category, String heading, String projectName, String content,
+                       List<String> technologies, List<Double> embedding,
+                       String embeddingModel, String embeddingVersion) {
+        this.id = id;
+        this.resumeId = resumeId;
+        this.candidateId = candidateId;
+        this.chunkIndex = chunkIndex;
+        this.category = category;
+        this.heading = heading;
+        this.projectName = projectName;
+        this.content = content;
+        this.technologies = technologies != null ? technologies : new ArrayList<>();
+        this.embedding = embedding != null ? embedding : new ArrayList<>();
+        this.embeddingModel = embeddingModel;
+        this.embeddingVersion = embeddingVersion;
+        this.embeddingDim = this.embedding.size();
         this.createdAt = Instant.now().toString();
     }
 
@@ -74,6 +107,9 @@ public class ResumeChunk {
     public String getHeading() { return heading; }
     public void setHeading(String heading) { this.heading = heading; }
 
+    public String getProjectName() { return projectName; }
+    public void setProjectName(String projectName) { this.projectName = projectName; }
+
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
@@ -81,7 +117,21 @@ public class ResumeChunk {
     public void setTechnologies(List<String> technologies) { this.technologies = technologies; }
 
     public List<Double> getEmbedding() { return embedding != null ? embedding : new ArrayList<>(); }
-    public void setEmbedding(List<Double> embedding) { this.embedding = embedding; }
+    public void setEmbedding(List<Double> embedding) {
+        this.embedding = embedding;
+        if (embedding != null) {
+            this.embeddingDim = embedding.size();
+        }
+    }
+
+    public String getEmbeddingModel() { return embeddingModel; }
+    public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
+
+    public String getEmbeddingVersion() { return embeddingVersion; }
+    public void setEmbeddingVersion(String embeddingVersion) { this.embeddingVersion = embeddingVersion; }
+
+    public Integer getEmbeddingDim() { return embeddingDim; }
+    public void setEmbeddingDim(Integer embeddingDim) { this.embeddingDim = embeddingDim; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

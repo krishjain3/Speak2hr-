@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.speak2hr.dto.RagEvaluateTextRequest;
 import com.speak2hr.dto.RagGenerateQuestionsRequest;
 import com.speak2hr.model.ResumeChunk;
+import com.speak2hr.service.GeminiService;
 import com.speak2hr.service.LocalEmbeddingEngine;
 import com.speak2hr.service.RagPersistentStore;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -16,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +42,60 @@ public class RagInterviewControllerTest {
 
     @Autowired
     private RagPersistentStore persistentStore;
+
+    @Autowired
+    private GeminiService geminiService;
+
+    @BeforeEach
+    public void setup() {
+        embeddingEngine.setMockEmbedder(this::semanticTestEmbedder);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        embeddingEngine.clearMockEmbedder();
+        geminiService.clearMockContentGenerator();
+    }
+
+    private List<Double> semanticTestEmbedder(String text) {
+        double[] vec = new double[LocalEmbeddingEngine.DIM];
+        String lower = text.toLowerCase();
+
+        // Cluster 1: Java / Spring / PostgreSQL / Backend
+        if (lower.contains("java") || lower.contains("spring") || lower.contains("postgresql") || lower.contains("sql") || lower.contains("persistence") || lower.contains("relational") || lower.contains("transaction")) {
+            for (int i = 0; i < 150; i++) vec[i] += 2.0;
+        }
+
+        // Cluster 2: Python / ML / FastAPI / ClickHouse / Data Pipeline
+        if (lower.contains("python") || lower.contains("fastapi") || lower.contains("clickhouse") || lower.contains("telemetry") || lower.contains("stream") || lower.contains("analytics")) {
+            for (int i = 150; i < 300; i++) vec[i] += 2.0;
+        }
+
+        // Cluster 3: Go / Kubernetes / gRPC / Mesh / Cloud
+        if (lower.contains("go") || lower.contains("golang") || lower.contains("kubernetes") || lower.contains("grpc") || lower.contains("cloud") || lower.contains("mesh")) {
+            for (int i = 300; i < 450; i++) vec[i] += 2.0;
+        }
+
+        // Cluster 4: Database / Caching / Redis / Kafka
+        if (lower.contains("redis") || lower.contains("caching") || lower.contains("kafka") || lower.contains("message")) {
+            for (int i = 450; i < 600; i++) vec[i] += 2.0;
+        }
+
+        // Cluster 5: Unrelated / Arts
+        if (lower.contains("watercolor") || lower.contains("painting") || lower.contains("art")) {
+            for (int i = 600; i < 750; i++) vec[i] += 2.0;
+        }
+
+        // Generic character frequency
+        for (char c : lower.toCharArray()) {
+            int idx = Math.abs((int) c * 31) % LocalEmbeddingEngine.DIM;
+            vec[idx] += 0.05;
+        }
+
+        List<Double> list = new ArrayList<>(LocalEmbeddingEngine.DIM);
+        for (double v : vec) list.add(v);
+        return embeddingEngine.normalizeVector(list);
+    }
 
     @Test
     public void testCompleteRagWorkflow() throws Exception {

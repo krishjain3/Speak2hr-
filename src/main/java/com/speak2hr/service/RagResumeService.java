@@ -80,13 +80,23 @@ public class RagResumeService {
 
         String fileHash = computeSha256(fileBytes);
 
-        // Idempotency: Check if candidate already uploaded this exact file
+        // Idempotency: Check if candidate already uploaded this exact file with matching embeddings
         ResumeDocument existingDoc = persistentStore.findResumeByHash(candidateId, fileHash);
         if (existingDoc != null) {
             List<ResumeChunk> existingChunks = persistentStore.getChunks(existingDoc.getId(), candidateId);
             if (!existingChunks.isEmpty()) {
-                logger.info("Reusing existing resume {} for candidate {} (hash match)", existingDoc.getId(), candidateId);
-                return buildUploadResponse(existingDoc, existingChunks.size(), true);
+                ResumeChunk firstChunk = existingChunks.get(0);
+                boolean isCompatible = embeddingEngine.isCompatible(
+                        firstChunk.getEmbeddingModel(),
+                        firstChunk.getEmbeddingVersion(),
+                        firstChunk.getEmbeddingDim() != null ? firstChunk.getEmbeddingDim() : 0
+                );
+                if (isCompatible) {
+                    logger.info("Reusing existing resume {} for candidate {} (hash and embedding match)", existingDoc.getId(), candidateId);
+                    return buildUploadResponse(existingDoc, existingChunks.size(), true);
+                } else {
+                    logger.info("Existing resume {} has outdated embeddings. Re-indexing...", existingDoc.getId());
+                }
             }
         }
 
@@ -110,10 +120,10 @@ public class RagResumeService {
         // 3. Structural & Section-Aware Chunking
         List<RawChunk> rawChunks = chunkResumeStructurally(cleanedText);
         if (rawChunks.isEmpty()) {
-            rawChunks.add(new RawChunk(0, "general", "General", cleanedText, embeddingEngine.extractTechnologies(cleanedText)));
+            rawChunks.add(new RawChunk(0, "general", "General", null, cleanedText, embeddingEngine.extractTechnologies(cleanedText)));
         }
 
-        // 4. Compute 128-dimensional dense vector embeddings
+        // 4. Compute 768-dimensional dense vector embeddings
         List<ResumeChunk> persistentChunks = new ArrayList<>();
         for (RawChunk rc : rawChunks) {
             String chunkId = "chk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -125,9 +135,12 @@ public class RagResumeService {
                     rc.chunkIndex,
                     rc.category,
                     rc.heading,
+                    rc.projectName,
                     rc.content,
                     rc.technologies,
-                    embedding
+                    embedding,
+                    embeddingEngine.getModelIdentifier(),
+                    embeddingEngine.getModelVersion()
             );
             persistentChunks.add(chunk);
         }
@@ -136,6 +149,8 @@ public class RagResumeService {
         Map<String, Object> profile = extractProfileStrict(cleanedText, filename, candidateId, persistentChunks.size());
 
         ResumeDocument doc = new ResumeDocument(resumeId, candidateId, filename, fileHash, cleanedText);
+        doc.setEmbeddingModel(embeddingEngine.getModelIdentifier());
+        doc.setEmbeddingVersion(embeddingEngine.getModelVersion());
         doc.setCandidateName((String) profile.get("candidate_name"));
         doc.setTargetRole((String) profile.get("target_role"));
 
@@ -282,13 +297,15 @@ public class RagResumeService {
         int chunkIndex;
         String category;
         String heading;
+        String projectName;
         String content;
         List<String> technologies;
 
-        RawChunk(int chunkIndex, String category, String heading, String content, List<String> technologies) {
+        RawChunk(int chunkIndex, String category, String heading, String projectName, String content, List<String> technologies) {
             this.chunkIndex = chunkIndex;
             this.category = category;
             this.heading = heading;
+            this.projectName = projectName;
             this.content = content;
             this.technologies = technologies;
         }
@@ -370,7 +387,7 @@ public class RagResumeService {
                     }
                     if (cleanTitle.length() > 45) cleanTitle = cleanTitle.substring(0, 45).trim();
                     List<String> techs = embeddingEngine.extractTechnologies(pBlock);
-                    chunks.add(new RawChunk(chunkIdx++, "project", "Project: " + cleanTitle, pBlock, techs));
+                    chunks.add(new RawChunk(chunkIdx++, "project", "Project: " + cleanTitle, cleanTitle, pBlock, techs));
                 }
             } else if ("work_experience".equalsIgnoreCase(category)) {
                 String[] expBlocks = secText.split("\n\\s*\n");
@@ -381,23 +398,23 @@ public class RagResumeService {
                     String cleanTitle = firstLine.replaceAll("^[•\\-*#\\s]+", "").trim();
                     if (cleanTitle.length() > 50) cleanTitle = cleanTitle.substring(0, 50).trim();
                     List<String> techs = embeddingEngine.extractTechnologies(expBlock);
-                    chunks.add(new RawChunk(chunkIdx++, "work_experience", "Experience: " + cleanTitle, expBlock, techs));
+                    chunks.add(new RawChunk(chunkIdx++, "work_experience", "Experience: " + cleanTitle, cleanTitle, expBlock, techs));
                 }
             } else if ("skills".equalsIgnoreCase(category)) {
                 if (secText.length() > 1200) {
                     for (String sBlock : secText.split("\n\\s*\n")) {
                         sBlock = sBlock.trim();
                         if (sBlock.isEmpty()) continue;
-                        chunks.add(new RawChunk(chunkIdx++, "skills", heading, sBlock, embeddingEngine.extractTechnologies(sBlock)));
+                        chunks.add(new RawChunk(chunkIdx++, "skills", heading, null, sBlock, embeddingEngine.extractTechnologies(sBlock)));
                     }
                 } else {
-                    chunks.add(new RawChunk(chunkIdx++, "skills", heading, secText, embeddingEngine.extractTechnologies(secText)));
+                    chunks.add(new RawChunk(chunkIdx++, "skills", heading, null, secText, embeddingEngine.extractTechnologies(secText)));
                 }
             } else {
                 for (String para : secText.split("\n\\s*\n")) {
                     para = para.trim();
                     if (para.length() < 15) continue;
-                    chunks.add(new RawChunk(chunkIdx++, category, heading, para, embeddingEngine.extractTechnologies(para)));
+                    chunks.add(new RawChunk(chunkIdx++, category, heading, null, para, embeddingEngine.extractTechnologies(para)));
                 }
             }
         }

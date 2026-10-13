@@ -89,13 +89,6 @@ public class RagInterviewService {
         if (requestedResumeId != null && !requestedResumeId.isBlank()) {
             resumeDoc = persistentStore.getResume(requestedResumeId, candidateId);
             if (resumeDoc == null) {
-                ResumeDocument anyDoc = persistentStore.getResume(requestedResumeId, null);
-                if (anyDoc != null && ("candidate_user".equals(candidateId) || "default_candidate".equals(candidateId)
-                        || "candidate_user".equals(anyDoc.getCandidateId()) || "default_candidate".equals(anyDoc.getCandidateId()))) {
-                    resumeDoc = anyDoc;
-                }
-            }
-            if (resumeDoc == null) {
                 throw new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Resume '" + requestedResumeId + "' not found or access denied for candidate '" + candidateId + "'."
@@ -119,10 +112,7 @@ public class RagInterviewService {
         int numQuestions = request.getNum_questions() != null && request.getNum_questions() > 0 ? request.getNum_questions() : 10;
 
         // 2. Retrieve candidate chunks and vector embeddings
-        List<ResumeChunk> allChunks = persistentStore.getChunks(resumeId, resumeDoc.getCandidateId());
-        if (allChunks.isEmpty()) {
-            allChunks = persistentStore.getChunks(resumeId, candidateId);
-        }
+        List<ResumeChunk> allChunks = persistentStore.getChunks(resumeId, candidateId);
         if (allChunks.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -130,13 +120,37 @@ public class RagInterviewService {
             );
         }
 
-        // 3. Targeted Multi-Query Semantic Retrieval
+        // 2b. Check embedding model compatibility; re-embed if incompatible or outdated
+        ResumeChunk sampleChunk = allChunks.get(0);
+        if (!embeddingEngine.isCompatible(
+                sampleChunk.getEmbeddingModel(),
+                sampleChunk.getEmbeddingVersion(),
+                sampleChunk.getEmbeddingDim() != null ? sampleChunk.getEmbeddingDim() : 0)) {
+            logger.info("Chunks for resume {} have outdated embeddings ({}/{}). Re-indexing with {}...",
+                    resumeId, sampleChunk.getEmbeddingModel(), sampleChunk.getEmbeddingDim(), embeddingEngine.getModelIdentifier());
+            List<ResumeChunk> reEmbedded = new ArrayList<>();
+            for (ResumeChunk c : allChunks) {
+                List<Double> newVec = embeddingEngine.embedText(c.getContent());
+                c.setEmbedding(newVec);
+                c.setEmbeddingModel(embeddingEngine.getModelIdentifier());
+                c.setEmbeddingVersion(embeddingEngine.getModelVersion());
+                c.setEmbeddingDim(embeddingEngine.getDimension());
+                reEmbedded.add(c);
+            }
+            persistentStore.saveChunks(resumeId, reEmbedded);
+            allChunks = reEmbedded;
+            resumeDoc.setEmbeddingModel(embeddingEngine.getModelIdentifier());
+            resumeDoc.setEmbeddingVersion(embeddingEngine.getModelVersion());
+            persistentStore.saveResume(resumeDoc);
+        }
+
+        // 3. Targeted Multi-Query Semantic Retrieval from actual resume facts
         List<String> focusTopics = request.getFocus_topics() != null ? request.getFocus_topics() : Collections.emptyList();
-        RetrievalResult retrievalResult = retrieveTargetedResumeContext(allChunks, targetRole, focusTopics);
+        RetrievalResult retrievalResult = retrieveTargetedResumeContext(resumeDoc, allChunks, targetRole, focusTopics);
         List<ResumeChunk> retrievedChunks = retrievalResult.chunks;
         String formattedContext = retrievalResult.formattedContext;
 
-        // 4. Evidence-Grounded Gemini Generation
+        // 4. Evidence-Grounded Gemini Generation & Server-Side Strict Validation
         List<QuestionItem> validQuestions = generateAndValidateQuestions(
                 resumeDoc, retrievedChunks, formattedContext, targetRole, difficulty, numQuestions
         );
@@ -168,7 +182,9 @@ public class RagInterviewService {
             ragContext.put("project_name", qItem.projectOrContext);
             ragContext.put("grounding_evidence", qItem.supportingEvidence);
             ragContext.put("relevance_explanation", qItem.relevanceExplanation);
-            ragContext.put("anti_hallucination_verified", true);
+            ragContext.put("anti_hallucination_verified", qItem.isVerified);
+            ragContext.put("validation_status", qItem.isVerified ? "VERIFIED" : "UNVERIFIED");
+            ragContext.put("rejection_reason", qItem.rejectionReason != null ? qItem.rejectionReason : "None");
             qMap.put("rag_context", ragContext);
 
             formattedQuestions.add(qMap);
@@ -196,12 +212,16 @@ public class RagInterviewService {
         response.put("projects_grounded", extractProjectNames(resumeDoc.getProjects()));
         response.put("skills_covered", resumeDoc.getSkills());
 
+        boolean allVerified = !formattedQuestions.isEmpty() && validQuestions.stream().allMatch(q -> q.isVerified);
+
         Map<String, Object> ragMetadata = new HashMap<>();
         ragMetadata.put("grounded_questions_count", formattedQuestions.size());
         ragMetadata.put("vector_chunks_searched", allChunks.size());
         ragMetadata.put("vector_chunks_retrieved", retrievedChunks.size());
-        ragMetadata.put("anti_hallucination_verified", true);
-        ragMetadata.put("retrieval_strategy", "multi_query_dense_vector");
+        ragMetadata.put("anti_hallucination_verified", allVerified);
+        ragMetadata.put("retrieval_strategy", "targeted_semantic_dense_vector");
+        ragMetadata.put("embedding_model", embeddingEngine.getModelIdentifier());
+        ragMetadata.put("embedding_version", embeddingEngine.getModelVersion());
         response.put("rag_metadata", ragMetadata);
 
         response.put("questions", formattedQuestions);
@@ -433,21 +453,48 @@ public class RagInterviewService {
         }
     }
 
-    private RetrievalResult retrieveTargetedResumeContext(List<ResumeChunk> allChunks, String targetRole, List<String> focusTopics) {
+    /**
+     * Build internal retrieval queries automatically from the candidate's actual projects,
+     * skills, and target role rather than generic hardcoded database queries.
+     */
+    private RetrievalResult retrieveTargetedResumeContext(
+            ResumeDocument resumeDoc, List<ResumeChunk> allChunks, String targetRole, List<String> focusTopics
+    ) {
         if (allChunks.isEmpty()) {
             return new RetrievalResult(Collections.emptyList(), "");
         }
 
-        List<String> targetedQueries = new ArrayList<>(List.of(
-                "projects implementation development designed built created architecture features outcomes",
-                "backend APIs microservices REST server system design scalability endpoints " + targetRole,
-                "database PostgreSQL MongoDB MySQL Redis caching indexing SQL schema cloud Docker Kubernetes AWS",
-                "authentication authorization JWT OAuth security external API integrations third-party protocols",
-                "programming languages frameworks libraries algorithms data structures testing debugging CI/CD"
-        ));
+        List<String> dynamicQueries = new ArrayList<>();
 
+        // 1. Project-specific queries
+        if (resumeDoc.getProjects() != null && !resumeDoc.getProjects().isEmpty()) {
+            for (Map<String, Object> p : resumeDoc.getProjects()) {
+                String pName = (String) p.get("name");
+                String pDesc = (String) p.get("description");
+                if (pName != null && !pName.isBlank()) {
+                    dynamicQueries.add("project " + pName + " " + (pDesc != null ? pDesc : ""));
+                }
+            }
+        }
+
+        // 2. Candidate skill queries
+        if (resumeDoc.getSkills() != null && !resumeDoc.getSkills().isEmpty()) {
+            List<String> skills = resumeDoc.getSkills();
+            for (int i = 0; i < Math.min(5, skills.size()); i++) {
+                dynamicQueries.add("technical implementation design and architecture using " + skills.get(i));
+            }
+        }
+
+        // 3. Focus topic queries if provided
         if (focusTopics != null && !focusTopics.isEmpty()) {
-            targetedQueries.add(String.join(" ", focusTopics) + " implementation engineering problem solving");
+            for (String topic : focusTopics) {
+                dynamicQueries.add(topic + " engineering architecture in " + targetRole);
+            }
+        }
+
+        // 4. Fallback role query if dynamic queries are few
+        if (dynamicQueries.isEmpty()) {
+            dynamicQueries.add("software engineering implementation architecture " + targetRole);
         }
 
         Map<String, Double> chunkScores = new HashMap<>();
@@ -455,12 +502,12 @@ public class RagInterviewService {
             chunkScores.put(c.getId(), 0.0);
         }
 
-        for (String query : targetedQueries) {
+        for (String query : dynamicQueries) {
             List<Double> qVec = embeddingEngine.embedText(query);
             for (ResumeChunk c : allChunks) {
                 double sim = embeddingEngine.cosineSimilarity(qVec, c.getEmbedding());
 
-                // Category boosts
+                // Favor concrete project implementations over generic summaries
                 if ("project".equalsIgnoreCase(c.getCategory())) {
                     sim *= 1.35;
                 } else if ("work_experience".equalsIgnoreCase(c.getCategory())) {
@@ -475,7 +522,7 @@ public class RagInterviewService {
             }
         }
 
-        // Rank by similarity
+        // Rank chunks by similarity
         List<ResumeChunk> ranked = new ArrayList<>(allChunks);
         ranked.sort((c1, c2) -> Double.compare(chunkScores.get(c2.getId()), chunkScores.get(c1.getId())));
 
@@ -491,7 +538,7 @@ public class RagInterviewService {
             if (selected.size() >= 8) break;
         }
 
-        // Ensure key project or skill chunks are present if too few were selected
+        // Ensure key project chunks are included if present
         if (selected.size() < 4) {
             for (ResumeChunk c : allChunks) {
                 if (!selected.contains(c) && ("project".equalsIgnoreCase(c.getCategory()) || "skills".equalsIgnoreCase(c.getCategory()))) {
@@ -501,16 +548,18 @@ public class RagInterviewService {
             }
         }
 
-        // Order chronologically by chunkIndex to give a coherent document reading flow
+        // Chronological order for coherent context presentation
         selected.sort(Comparator.comparingInt(c -> (c.getChunkIndex() != null ? c.getChunkIndex() : 0)));
 
         StringBuilder contextBuilder = new StringBuilder();
         for (int i = 0; i < selected.size(); i++) {
             ResumeChunk c = selected.get(i);
             String heading = c.getHeading() != null ? c.getHeading() : "Section " + (i + 1);
+            String projTag = c.getProjectName() != null ? " | Project: " + c.getProjectName() : "";
             String techs = String.join(", ", c.getTechnologies());
             contextBuilder.append("--- EXCERPT [").append(i + 1).append("] | Category: ")
                     .append(c.getCategory() != null ? c.getCategory().toUpperCase() : "GENERAL")
+                    .append(projTag)
                     .append(" | Heading: ").append(heading)
                     .append(" | Technologies: ").append(techs.isBlank() ? "None listed" : techs).append(" ---\n");
             contextBuilder.append(c.getContent().trim()).append("\n\n");
@@ -523,19 +572,21 @@ public class RagInterviewService {
     // Evidence Validation & Anti-Hallucination Safe Generation
     // ------------------------------------------------------------------------
 
-    private static class QuestionItem {
-        String question;
-        String projectOrContext;
-        String supportingEvidence;
-        String category;
-        String difficulty;
-        List<String> expectedKeywords;
-        String relevanceExplanation;
+    public static class QuestionItem {
+        public String question;
+        public String projectOrContext;
+        public String supportingEvidence;
+        public String category;
+        public String difficulty;
+        public List<String> expectedKeywords;
+        public String relevanceExplanation;
+        public boolean isVerified = false;
+        public String rejectionReason = null;
 
-        QuestionItem() {}
+        public QuestionItem() {}
 
-        QuestionItem(String question, String projectOrContext, String supportingEvidence,
-                     String category, String difficulty, List<String> expectedKeywords, String relevanceExplanation) {
+        public QuestionItem(String question, String projectOrContext, String supportingEvidence,
+                            String category, String difficulty, List<String> expectedKeywords, String relevanceExplanation) {
             this.question = question;
             this.projectOrContext = projectOrContext;
             this.supportingEvidence = supportingEvidence;
@@ -554,15 +605,13 @@ public class RagInterviewService {
             String difficulty,
             int targetCount
     ) {
-        String fullResumeText = resumeDoc.getRawText() != null ? resumeDoc.getRawText() : "";
-
         String prompt = "You are a principal technical interviewer assessing a candidate for the role of '" + targetRole + "'.\n" +
                 "Generate exactly " + targetCount + " technical interview questions STRICTLY GROUNDED in the candidate's actual resume excerpts below.\n\n" +
                 "CRITICAL ACCURACY RULES:\n" +
                 "1. FACTUAL GROUNDING: Every question MUST be based on specific technical evidence from the resume excerpts.\n" +
                 "2. ZERO FABRICATION: Do NOT invent project names, employers, architectures, metrics, responsibilities, or tools not in excerpts.\n" +
                 "3. ATTRIBUTION INTEGRITY: If Technology X was used in Project A, do NOT ask about Technology X in Project B. Never cross-contaminate projects.\n" +
-                "4. DISTINGUISH LISTED SKILLS VS IMPLEMENTATION: If a skill is merely listed, ask about its concepts without falsely claiming they built a specific feature.\n" +
+                "4. DISTINGUISH LISTED SKILLS VS IMPLEMENTATION: If a skill is merely listed, ask conceptual questions without falsely claiming they built an undocumented feature.\n" +
                 "5. SUPPORTING EVIDENCE: For each question, provide the EXACT excerpt from the resume in `supporting_evidence`.\n" +
                 "6. Provide questions as a strict JSON array where each item has:\n" +
                 "   - question (string)\n" +
@@ -597,69 +646,152 @@ public class RagInterviewService {
                 }
             }
         } catch (Exception e) {
-            logger.warn("Gemini question generation parse failed or offline: {}", e.getMessage());
+            logger.warn("Gemini question generation failed or offline: {}", e.getMessage());
         }
 
         // Server-Side Strict Evidence Validation
         List<QuestionItem> verifiedQuestions = new ArrayList<>();
         for (QuestionItem q : candidateQuestions) {
-            if (validateQuestion(q, fullResumeText, retrievedChunks)) {
+            StringBuilder rejectionReason = new StringBuilder();
+            if (validateQuestion(q, resumeDoc, retrievedChunks, rejectionReason)) {
+                q.isVerified = true;
                 verifiedQuestions.add(q);
             } else {
-                logger.warn("Rejected hallucinated or cross-contaminated question: '{}'", q.question);
+                q.isVerified = false;
+                q.rejectionReason = rejectionReason.toString();
+                logger.warn("Rejected unverified/hallucinated question: '{}' (Reason: {})", q.question, rejectionReason);
             }
         }
 
-        // Deduplicate questions by vector similarity
+        // Deduplicate verified questions
         verifiedQuestions = deduplicateQuestions(verifiedQuestions);
 
-        // Deterministic Synthesis Fallback if Gemini failed or produced 0 valid questions
+        // Deterministic Synthesis Fallback if Gemini failed or produced 0 valid verified questions
         if (verifiedQuestions.isEmpty()) {
-            logger.info("Synthesizing deterministic evidence-grounded questions directly from candidate's retrieved chunks");
-            verifiedQuestions = synthesizeGroundedQuestionsFromChunks(retrievedChunks, targetRole, targetCount);
+            logger.info("Synthesizing strictly grounded deterministic questions from verified resume facts");
+            verifiedQuestions = synthesizeGroundedQuestionsFromChunks(resumeDoc, retrievedChunks, targetRole, targetCount);
         }
 
         return verifiedQuestions;
     }
 
-    private boolean validateQuestion(QuestionItem item, String fullResumeText, List<ResumeChunk> chunks) {
-        if (item.question == null || item.question.length() < 15) return false;
+    /**
+     * Rigorous evidence-aware validator verifying every technical claim, project attribution,
+     * and supporting excerpt against the candidate's actual resume document.
+     */
+    public boolean validateQuestion(
+            QuestionItem item, ResumeDocument resumeDoc, List<ResumeChunk> chunks, StringBuilder rejectionReason
+    ) {
+        if (item.question == null || item.question.length() < 15) {
+            if (rejectionReason != null) rejectionReason.append("Question is too short or null");
+            return false;
+        }
 
+        String fullResumeText = resumeDoc.getRawText() != null ? resumeDoc.getRawText() : "";
         String lowerResume = fullResumeText.toLowerCase();
-        String evidence = item.supportingEvidence != null ? item.supportingEvidence.trim().toLowerCase() : "";
+        String lowerQ = item.question.toLowerCase();
 
-        // Rule 1: Evidence check
-        if (!evidence.isBlank()) {
-            if (!lowerResume.contains(evidence)) {
-                // Fuzzy token overlap check
-                String[] words = evidence.split("\\W+");
-                int matchCount = 0;
-                for (String w : words) {
-                    if (w.length() >= 3 && lowerResume.contains(w)) matchCount++;
+        // 1. Reject generic behavioral red flags
+        for (String redFlag : GENERIC_RED_FLAGS) {
+            if (lowerQ.contains(redFlag)) {
+                if (rejectionReason != null) rejectionReason.append("Generic behavioral red-flag question");
+                return false;
+            }
+        }
+
+        // 2. Supporting Evidence check: excerpt must exist in the resume text
+        String evidence = item.supportingEvidence != null ? item.supportingEvidence.trim().toLowerCase() : "";
+        if (evidence.isBlank()) {
+            if (rejectionReason != null) rejectionReason.append("Missing supporting evidence");
+            return false;
+        }
+
+        if (!lowerResume.contains(evidence)) {
+            String[] words = evidence.split("\\W+");
+            int matchCount = 0;
+            for (String w : words) {
+                if (w.length() >= 3 && lowerResume.contains(w)) matchCount++;
+            }
+            if (words.length > 0 && ((double) matchCount / words.length) < 0.75) {
+                if (rejectionReason != null) rejectionReason.append("Supporting evidence not grounded in resume text");
+                return false;
+            }
+        }
+
+        // 3. Project Attribution & Cross-Contamination Check
+        // Identify all projects in the candidate's resume
+        List<String> knownProjects = new ArrayList<>();
+        if (resumeDoc.getProjects() != null) {
+            for (Map<String, Object> p : resumeDoc.getProjects()) {
+                String name = (String) p.get("name");
+                if (name != null && !name.isBlank()) knownProjects.add(name.toLowerCase());
+            }
+        }
+        for (ResumeChunk c : chunks) {
+            if ("project".equalsIgnoreCase(c.getCategory()) && c.getProjectName() != null) {
+                if (!knownProjects.contains(c.getProjectName().toLowerCase())) {
+                    knownProjects.add(c.getProjectName().toLowerCase());
                 }
-                if (words.length > 0 && ((double) matchCount / words.length) < 0.65) {
+            }
+        }
+
+        // Check which project is referenced in the question
+        String referencedProject = null;
+        for (String kp : knownProjects) {
+            if (lowerQ.contains(kp)) {
+                referencedProject = kp;
+                break;
+            }
+        }
+
+        if (referencedProject != null) {
+            // Find the project's actual chunk or resume section
+            String projectContent = "";
+            for (ResumeChunk c : chunks) {
+                if ("project".equalsIgnoreCase(c.getCategory()) && c.getContent().toLowerCase().contains(referencedProject)) {
+                    projectContent += " " + c.getContent().toLowerCase();
+                }
+            }
+            if (projectContent.isBlank()) {
+                projectContent = lowerResume;
+            }
+
+            // Extract technologies mentioned in the question
+            List<String> qTechs = embeddingEngine.extractTechnologies(item.question);
+            for (String tech : qTechs) {
+                // If question attributes tech to this project, tech MUST appear in project text!
+                if (!projectContent.contains(tech.toLowerCase())) {
+                    if (rejectionReason != null) {
+                        rejectionReason.append("Technology '").append(tech)
+                                .append("' is falsely attributed to project '").append(referencedProject).append("'");
+                    }
                     return false;
                 }
             }
         }
 
-        // Rule 2: Project Context check
-        if (item.projectOrContext != null && item.projectOrContext.length() > 3) {
-            String ctx = item.projectOrContext.trim().toLowerCase();
-            if (!lowerResume.contains(ctx)) {
-                String[] ctxWords = ctx.split("\\W+");
-                int m = 0;
-                for (String cw : ctxWords) {
-                    if (cw.length() >= 3 && lowerResume.contains(cw)) m++;
+        // 4. Check for technologies not present anywhere in the candidate's resume
+        List<String> questionTechs = embeddingEngine.extractTechnologies(item.question);
+        for (String tech : questionTechs) {
+            if (!lowerResume.contains(tech.toLowerCase())) {
+                if (rejectionReason != null) {
+                    rejectionReason.append("Technology '").append(tech).append("' does not appear anywhere in resume");
                 }
-                if (ctxWords.length > 0 && m == 0) return false;
+                return false;
             }
         }
 
-        // Rule 3: Reject generic behavioral questions
-        String lowerQ = item.question.toLowerCase();
-        for (String redFlag : GENERIC_RED_FLAGS) {
-            if (lowerQ.contains(redFlag)) return false;
+        // 5. Invented Performance Metric check (e.g. 40% improvement, 10,000 req/s)
+        Pattern metricPattern = Pattern.compile("\\b(\\d{1,3}%|\\d+[xX]\\s+(?:faster|scaling)|\\d+[kKmM]\\s+(?:requests|users|queries))\\b");
+        Matcher m = metricPattern.matcher(item.question);
+        while (m.find()) {
+            String claim = m.group(1).toLowerCase();
+            if (!lowerResume.contains(claim)) {
+                if (rejectionReason != null) {
+                    rejectionReason.append("Question claims unverified performance metric: '").append(claim).append("'");
+                }
+                return false;
+            }
         }
 
         return true;
@@ -672,7 +804,7 @@ public class RagInterviewService {
             List<Double> qVec = embeddingEngine.embedText(q.question);
             for (QuestionItem u : unique) {
                 List<Double> uVec = embeddingEngine.embedText(u.question);
-                if (embeddingEngine.cosineSimilarity(qVec, uVec) > 0.80) {
+                if (embeddingEngine.cosineSimilarity(qVec, uVec) > 0.75) {
                     isDup = true;
                     break;
                 }
@@ -683,111 +815,81 @@ public class RagInterviewService {
     }
 
     /**
-     * Deterministic evidence-grounded question synthesizer.
-     * Generates questions strictly using the candidate's actual projects,
-     * actual extracted sentences, and actual technologies. NEVER fabricates fake entities.
+     * Deterministic, 100% evidence-grounded question synthesizer.
+     * Generates questions strictly from the candidate's verified resume sentences
+     * and listed competencies without inventing architectures, metrics, or production claims.
+     * Factual accuracy over quantity: returns only as many questions as supported by evidence.
      */
     private List<QuestionItem> synthesizeGroundedQuestionsFromChunks(
-            List<ResumeChunk> chunks, String targetRole, int maxCount
+            ResumeDocument resumeDoc, List<ResumeChunk> chunks, String targetRole, int maxCount
     ) {
         List<QuestionItem> questions = new ArrayList<>();
+        Set<String> seenProjects = new HashSet<>();
 
+        // 1. Generate strictly from verified project chunks
         for (ResumeChunk c : chunks) {
             if (questions.size() >= maxCount) break;
+            if ("project".equalsIgnoreCase(c.getCategory())) {
+                String projName = c.getProjectName() != null ? c.getProjectName() : cleanHeading(c.getHeading());
+                if (projName == null || projName.isBlank() || seenProjects.contains(projName.toLowerCase())) {
+                    continue;
+                }
+                seenProjects.add(projName.toLowerCase());
 
-            String cat = c.getCategory() != null ? c.getCategory().toLowerCase() : "";
-            String heading = c.getHeading() != null ? c.getHeading() : "";
-            String content = c.getContent() != null ? c.getContent().trim() : "";
-            List<String> techs = c.getTechnologies() != null ? c.getTechnologies() : Collections.emptyList();
-
-            if ("project".equals(cat) && content.length() > 25) {
-                String projName = cleanHeading(heading);
+                String content = c.getContent() != null ? c.getContent().trim() : "";
                 String[] sentences = content.split("[.\n•\\-]");
-                List<String> validSentences = new ArrayList<>();
+                String anchorSentence = null;
                 for (String s : sentences) {
-                    if (s.trim().length() > 20) validSentences.add(s.trim());
-                }
-
-                if (!validSentences.isEmpty()) {
-                    String anchor = validSentences.get(0);
-                    String techPhrase = !techs.isEmpty() ? " using " + String.join(", ", techs.subList(0, Math.min(3, techs.size()))) : "";
-                    questions.add(new QuestionItem(
-                            "In your project '" + projName + "'" + techPhrase + ", can you elaborate on how you architected and implemented: " + truncate(anchor, 90) + "?",
-                            projName,
-                            anchor,
-                            "project_deep_dive",
-                            "medium",
-                            techs.isEmpty() ? List.of("architecture", "design", "implementation") : techs,
-                            "Directly probes candidate's verified implementation in '" + projName + "'."
-                    ));
-                }
-
-                if (validSentences.size() > 1 && questions.size() < maxCount) {
-                    String challenge = validSentences.get(1);
-                    questions.add(new QuestionItem(
-                            "Regarding '" + projName + "', what core technical tradeoffs and performance bottlenecks did you address when implementing: '" + truncate(challenge, 80) + "'?",
-                            projName,
-                            challenge,
-                            "problem_solving",
-                            "hard",
-                            techs.isEmpty() ? List.of("tradeoffs", "optimization", "scalability") : techs,
-                            "Assesses problem-solving depth in '" + projName + "'."
-                    ));
-                }
-            } else if ("work_experience".equals(cat) && content.length() > 25) {
-                String expRole = cleanHeading(heading);
-                String[] sentences = content.split("[.\n•\\-]");
-                for (String s : sentences) {
-                    if (s.trim().length() > 20) {
-                        questions.add(new QuestionItem(
-                                "During your experience with " + expRole + ", how did you approach the architecture and delivery of: '" + truncate(s.trim(), 80) + "'?",
-                                expRole,
-                                s.trim(),
-                                "technical_implementation",
-                                "medium",
-                                techs.isEmpty() ? List.of("architecture", "production", "delivery") : techs,
-                                "Directly evaluates technical execution in " + expRole + "."
-                        ));
+                    s = s.trim();
+                    if (s.length() > 20 && !s.toLowerCase().startsWith("skills") && !s.toLowerCase().startsWith("technologies")) {
+                        anchorSentence = s;
                         break;
                     }
                 }
-            } else if ("skills".equals(cat) && !techs.isEmpty()) {
-                String topTech = techs.get(0);
-                questions.add(new QuestionItem(
-                        "You list proficiency in " + topTech + ". How have you applied " + topTech + " in production to maintain data consistency, resilience, and low latency?",
-                        "Skill: " + topTech,
-                        "Technical Skill: " + topTech,
-                        "skill_demonstration",
+                if (anchorSentence == null) {
+                    anchorSentence = content.length() > 80 ? content.substring(0, 80) : content;
+                }
+
+                List<String> projTechs = c.getTechnologies() != null ? c.getTechnologies() : Collections.emptyList();
+                String techClause = !projTechs.isEmpty() ? " using " + String.join(", ", projTechs) : "";
+
+                QuestionItem item = new QuestionItem(
+                        "In your project '" + projName + "'" + techClause + ", how did you approach the implementation of: '" + truncate(anchorSentence, 90) + "'?",
+                        projName,
+                        anchorSentence,
+                        "project_deep_dive",
                         "medium",
-                        List.of(topTech, "concurrency", "performance", "best practices"),
-                        "Validates listed skill " + topTech + " without inventing undocumented projects."
-                ));
+                        projTechs.isEmpty() ? List.of("architecture", "implementation") : projTechs,
+                        "Grounded in verified project '" + projName + "'."
+                );
+                item.isVerified = true;
+                questions.add(item);
             }
         }
 
-        // Fill remaining up to maxCount using other candidate skills if needed
-        if (questions.size() < maxCount) {
-            for (ResumeChunk c : chunks) {
-                if (questions.size() >= maxCount) break;
-                List<String> techs = c.getTechnologies();
-                for (String tech : techs) {
-                    if (questions.size() >= maxCount) break;
-                    boolean alreadyAsked = false;
-                    for (QuestionItem qi : questions) {
-                        if (qi.question.contains(tech)) { alreadyAsked = true; break; }
-                    }
-                    if (!alreadyAsked) {
-                        questions.add(new QuestionItem(
-                                "Based on your verified skill in " + tech + ", what engineering design patterns or testing strategies do you employ when building production services?",
-                                "Skill: " + tech,
-                                "Technical Skill: " + tech,
-                                "skill_demonstration",
-                                "medium",
-                                List.of(tech, "design patterns", "testing", "resilience"),
-                                "Validates candidate's listed skill " + tech + "."
-                        ));
-                    }
+        // 2. Generate conceptual questions from verified listed skills (without inventing production claims)
+        List<String> skills = resumeDoc.getSkills() != null ? resumeDoc.getSkills() : Collections.emptyList();
+        for (String skill : skills) {
+            if (questions.size() >= maxCount) break;
+            boolean alreadyCovered = false;
+            for (QuestionItem q : questions) {
+                if (q.question.toLowerCase().contains(skill.toLowerCase())) {
+                    alreadyCovered = true;
+                    break;
                 }
+            }
+            if (!alreadyCovered) {
+                QuestionItem item = new QuestionItem(
+                        "You list proficiency in " + skill + ". What are the foundational architectural concepts of " + skill + ", and how do you approach debugging issues when working with it?",
+                        "Skill: " + skill,
+                        "Technical Skill: " + skill,
+                        "skill_demonstration",
+                        "medium",
+                        List.of(skill, "architecture", "debugging"),
+                        "Conceptual inquiry grounded in listed skill '" + skill + "'."
+                );
+                item.isVerified = true;
+                questions.add(item);
             }
         }
 
@@ -848,46 +950,27 @@ public class RagInterviewService {
         eval.put("overall_score", baseScore);
         eval.put("technical_score", Math.min(100.0, baseScore + 2.0));
         eval.put("reasoning_depth", Math.max(0.0, baseScore - 2.0));
-        eval.put("clarity", 84.0);
-        eval.put("relevance", 85.0);
-        eval.put("feedback", "Candidate provided a structured technical explanation with practical engineering reasoning.");
-        eval.put("strengths", List.of("Direct answer to question", "Articulated architectural decisions clearly"));
-        eval.put("improvements", List.of("Elaborate further on trade-offs and edge failure modes"));
+        eval.put("clarity", baseScore);
+        eval.put("relevance", Math.min(100.0, baseScore + 1.0));
+        eval.put("feedback", "Answer demonstrates understanding of the core technical concept.");
+        eval.put("strengths", List.of("Covered key concepts: " + String.join(", ", matched)));
+        eval.put("improvements", List.of("Elaborate on production failure modes and scaling tradeoffs."));
         eval.put("keywords_matched", matched);
 
         return eval;
     }
 
-    private List<String> extractProjectNames(List<Map<String, Object>> projects) {
-        List<String> names = new ArrayList<>();
-        if (projects != null) {
-            for (Map<String, Object> p : projects) {
-                Object name = p.get("name");
-                if (name != null) names.add(name.toString());
-            }
-        }
-        return names;
+    private static String cleanHeading(String heading) {
+        if (heading == null) return "Recent Project";
+        return heading.replaceAll("(?i)^(?:Project[s]?:|Experience:|Heading:)\\s*", "").trim();
     }
 
-    private String cleanHeading(String heading) {
-        if (heading == null) return "Project";
-        String h = heading.replaceFirst("^(?i)(Project|Experience|Role|Heading):\\s*", "").trim();
-        if (h.contains(":")) {
-            String before = h.substring(0, h.indexOf(":")).trim();
-            if (before.length() >= 3 && before.length() <= 45) {
-                h = before;
-            }
-        }
-        if (h.length() > 45) h = h.substring(0, 45).trim();
-        return h.isEmpty() ? "Project" : h;
+    private static String truncate(String text, int max) {
+        if (text == null) return "";
+        return text.length() <= max ? text : text.substring(0, max) + "...";
     }
 
-    private String truncate(String s, int maxLen) {
-        if (s == null) return "";
-        return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
-    }
-
-    private double toDouble(Object obj, double defaultVal) {
+    private static double toDouble(Object obj, double defaultVal) {
         if (obj instanceof Number) return ((Number) obj).doubleValue();
         if (obj instanceof String) {
             try { return Double.parseDouble((String) obj); } catch (Exception ignored) {}
@@ -896,15 +979,24 @@ public class RagInterviewService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> castStringList(Object obj) {
+    private static List<String> castStringList(Object obj) {
         if (obj instanceof List) {
-            List<?> l = (List<?>) obj;
-            List<String> res = new ArrayList<>();
-            for (Object item : l) {
-                if (item != null) res.add(item.toString());
+            List<String> result = new ArrayList<>();
+            for (Object item : (List<?>) obj) {
+                if (item != null) result.add(item.toString());
             }
-            return res;
+            return result;
         }
         return Collections.emptyList();
+    }
+
+    private static List<String> extractProjectNames(List<Map<String, Object>> projects) {
+        if (projects == null) return Collections.emptyList();
+        List<String> names = new ArrayList<>();
+        for (Map<String, Object> p : projects) {
+            String name = (String) p.get("name");
+            if (name != null && !name.isBlank()) names.add(name);
+        }
+        return names;
     }
 }
